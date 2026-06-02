@@ -323,6 +323,27 @@ st.markdown('<div class="main-title">📤 Exportador Automático de Datos a Exce
 st.markdown('<div class="section-title">0️⃣ Selecciona el método de procesamiento</div>', unsafe_allow_html=True)
 metodo = st.radio("¿Cómo deseas procesar el archivo?", ["Procesar", "Pivotear", "Qualtrics"], horizontal=True)
 
+# --- Filtro de período (solo Qualtrics) ---
+fecha_inicio_q = None
+fecha_fin_q = None
+if metodo == "Qualtrics":
+    from datetime import date as _date
+    st.markdown('<div class="section-title">📅 Período de análisis</div>', unsafe_allow_html=True)
+    st.caption("Qualtrics almacena todo el histórico. Selecciona el rango de fechas de inicio de las encuestas que quieres analizar.")
+    _col1, _col2 = st.columns(2)
+    with _col1:
+        fecha_inicio_q = st.date_input(
+            "Fecha inicio",
+            value=st.session_state.get("fecha_inicio_q", _date(_date.today().year, 1, 1)),
+            key="fecha_inicio_q"
+        )
+    with _col2:
+        fecha_fin_q = st.date_input(
+            "Fecha fin",
+            value=st.session_state.get("fecha_fin_q", _date.today()),
+            key="fecha_fin_q"
+        )
+
 # --- Sección: Carga del archivo ---
 st.markdown('<div class="section-title">1️⃣ Subir archivo Excel</div>', unsafe_allow_html=True)
 archivo_excel = st.file_uploader("Cargar archivo .xlsx", type=["xlsx"])
@@ -342,8 +363,36 @@ if archivo_excel is not None:
             df = pivotear_excel(df)
             st.success("✅ Archivo procesado correctamente (Pivotear)")
         elif metodo == "Qualtrics":
-            df = procesar_qualtrics(df)
-            st.success("✅ Archivo procesado correctamente (Qualtrics)")
+            total_bruto = len(df) - 1  # -1 por la fila de descripciones de Qualtrics
+            df_data = df.iloc[1:].copy()  # saltar fila de descripciones
+
+            # 1) Filtros de validez fijos
+            if 'Status' in df_data.columns:
+                df_data = df_data[df_data['Status'].astype(str).str.strip() == 'IP Address']
+            if 'Progress' in df_data.columns:
+                df_data = df_data[pd.to_numeric(df_data['Progress'], errors='coerce') == 100]
+            if 'Finished' in df_data.columns:
+                df_data = df_data[df_data['Finished'].astype(str).str.strip().str.lower().isin(['true', '1'])]
+
+            # 2) Filtro de fechas
+            _fi = st.session_state.get("fecha_inicio_q")
+            _ff = st.session_state.get("fecha_fin_q")
+            if _fi and _ff and 'StartDate' in df_data.columns:
+                _fechas = pd.to_datetime(df_data['StartDate'], errors='coerce')
+                df_data = df_data[
+                    (_fechas.dt.date >= _fi) &
+                    (_fechas.dt.date <= _ff)
+                ]
+
+            encuestas_validas = len(df_data)
+            descartadas = total_bruto - encuestas_validas
+
+            # Reconstruir con fila de descripciones para que procesar_qualtrics renombre columnas
+            df = procesar_qualtrics(pd.concat([df.iloc[[0]], df_data]).reset_index(drop=True))
+
+            st.success(f"✅ Qualtrics procesado: **{encuestas_validas}** encuestas válidas | **{descartadas}** descartadas")
+            if _fi and _ff:
+                st.caption(f"Período: {_fi.strftime('%d/%m/%Y')} – {_ff.strftime('%d/%m/%Y')}")
         st.session_state["df_encuesta"] = df
     except Exception as e:
         st.error(f"❌ Error al leer o procesar el archivo: {e}")
