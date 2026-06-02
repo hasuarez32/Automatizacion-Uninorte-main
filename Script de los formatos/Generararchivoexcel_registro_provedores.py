@@ -914,7 +914,7 @@
 
     #Escribir la suma de correlacion
     fin = xl_rowcol_to_cell(start_sati_impor+2, 6)  
-    TG.write_formula(start_sati_impor+3, 6, f'=SUM({inicio}:{fin})', Formato_satis_import3)
+    TG.write_formula(start_sati_impor+3, 6, f'=IFERROR(SUM({inicio}:{fin}),0)', Formato_satis_import3)
 
     #Escribir los pesos
     inicio_peso = xl_rowcol_to_cell(id_row_peso+3, 7)  
@@ -926,7 +926,7 @@
 
     #Calcular la media de los pesos
     fin_peso = xl_rowcol_to_cell(id_row_peso+2, 7)  
-    TG.write_formula(id_row_peso+3, 7, f'=IFERROR(MEDIAN({inicio_peso}:{fin_peso}),0%)', Formato_satis_import5)
+    TG.write_array_formula(id_row_peso+3, 7, id_row_peso+3, 7, f'=IFERROR(MEDIAN(IF({inicio_peso}:{fin_peso}<>0,{inicio_peso}:{fin_peso})),0)', Formato_satis_import5)
 
 
     Inicio_nip = xl_rowcol_to_cell(id__row_nip+3, 8)
@@ -940,7 +940,7 @@
 
     fin_nip = xl_rowcol_to_cell(id__row_nip+2, 8)
     fin_nip_grafico = xl_rowcol_to_cell(id__row_nip+2, 8, row_abs=True, col_abs=True)
-    TG.write_formula(id__row_nip+3, 8, f'=IFERROR(AVERAGE({Inicio_nip}:{fin_nip}),0)', Formato_satis_import7)
+    TG.write_array_formula(id__row_nip+3, 8, id__row_nip+3, 8, f'=IFERROR(AVERAGE(IF({Inicio_nip}:{fin_nip}<>0,{Inicio_nip}:{fin_nip})),0)', Formato_satis_import7)
 
 
     #ecribir el nsp de 0:100
@@ -957,7 +957,7 @@
         suma_ponderada = '+'.join([f'({celda}*{peso})' for celda, peso in zip(celdas, Pesos)])
         TG.write(id_row_nsp1+2, 9, f'=IFERROR({suma_ponderada}, 0)', Formato_satis_import8)
     fin_nsp1 = xl_rowcol_to_cell(id_row_nsp1+2, 9)
-    TG.write_formula(id_row_nsp1+3, 9, f'=IFERROR(MEDIAN({Inicio_nsp1}:{fin_nsp1}),0)', Formato_satis_import9)
+    TG.write_array_formula(id_row_nsp1+3, 9, id_row_nsp1+3, 9, f'=IFERROR(MEDIAN(IF({Inicio_nsp1}:{fin_nsp1}<>0,{Inicio_nsp1}:{fin_nsp1})),0)', Formato_satis_import9)
 
     #ecribir el nsp de 0:5
     Inicio_nsp2 = xl_rowcol_to_cell(id_row_nsp2+3, 10)
@@ -968,7 +968,7 @@
     #Escribir P(NIP)
 
     fin_nsp2 = xl_rowcol_to_cell(id_row_nsp2+2, 10)
-    TG.write_formula(id_row_nsp2+3, 10, f'=IFERROR(MEDIAN({Inicio_nsp2}:{fin_nsp2}),0)', Formato_satis_import11)
+    TG.write_array_formula(id_row_nsp2+3, 10, id_row_nsp2+3, 10, f'=IFERROR(MEDIAN(IF({Inicio_nsp2}:{fin_nsp2}<>0,{Inicio_nsp2}:{fin_nsp2})),0)', Formato_satis_import11)
 
     #Escribir el pnsp
     Inicio_pnsp = xl_rowcol_to_cell(id_row_pnsp+3,11)
@@ -982,7 +982,7 @@
 
     fin_pnsp = xl_rowcol_to_cell(id__row_nip+2, 11)
     fin_pnsp_grafico = xl_rowcol_to_cell(id__row_nip+2, 11, row_abs=True, col_abs=True)
-    TG.write_formula(id_row_pnsp+3, 11, f'=IFERROR(AVERAGE({Inicio_pnsp}:{fin_pnsp}),0)', Formato_satis_import12)
+    TG.write_array_formula(id_row_pnsp+3, 11, id_row_pnsp+3, 11, f'=IFERROR(AVERAGE(IF({Inicio_pnsp}:{fin_pnsp}<>0,{Inicio_pnsp}:{fin_pnsp})),0)', Formato_satis_import12)
 
     #CODGIGO FORMATO CODICIONAL
     for c in range(len(Preguntas)):
