@@ -1,0 +1,924 @@
+\documentclass[12pt, letterpaper]{article}
+
+% ─── Paquetes ────────────────────────────────────────────────────────────────
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{listings}
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{fontawesome5}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{tikz}
+\usepackage{mdframed}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, calc}
+
+\tcbuselibrary{skins, breakable, listings}
+
+% ─── Geometría ───────────────────────────────────────────────────────────────
+\geometry{top=2.5cm, bottom=2.5cm, left=3cm, right=3cm}
+
+% ─── Colores ─────────────────────────────────────────────────────────────────
+\definecolor{uninorteazul}{RGB}{47, 62, 117}
+\definecolor{uninorteclaro}{RGB}{220, 230, 250}
+\definecolor{verdecode}{RGB}{39, 174, 96}
+\definecolor{verdeclaro}{RGB}{212, 245, 225}
+\definecolor{amarillo}{RGB}{255, 193, 7}
+\definecolor{amarilloclaro}{RGB}{255, 248, 220}
+\definecolor{rojo}{RGB}{192, 57, 43}
+\definecolor{rojoclaro}{RGB}{250, 220, 215}
+\definecolor{grisclaro}{RGB}{248, 248, 248}
+\definecolor{grismedio}{RGB}{160, 160, 160}
+\definecolor{fondocodigo}{RGB}{25, 25, 25}
+\definecolor{comentario}{RGB}{106, 153, 85}
+\definecolor{cadena}{RGB}{206, 145, 120}
+\definecolor{keyword}{RGB}{86, 156, 214}
+\definecolor{numero}{RGB}{181, 206, 168}
+\definecolor{naranja}{RGB}{230, 120, 20}
+
+% ─── Hyperref ────────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true, linkcolor=uninorteazul,
+  urlcolor=uninorteazul, citecolor=uninorteazul,
+  pdftitle={Documentación Técnica - Sistema de Reportes Uninorte},
+}
+
+% ─── Encabezado/Pie ──────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{uninorteazul}\textbf{Documentación Técnica — Automatización Uninorte}}
+\fancyhead[R]{\small\color{grismedio}v1.0 · 2025}
+\fancyfoot[C]{\small\color{grismedio}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ─── Secciones ───────────────────────────────────────────────────────────────
+\titleformat{\section}[block]
+  {\Large\bfseries\color{uninorteazul}}
+  {\colorbox{uninorteazul}{\color{white}\,\thesection\,}}{0.8em}{}
+  [\color{uninorteazul}\rule{\linewidth}{1.5pt}]
+
+\titleformat{\subsection}[block]
+  {\large\bfseries\color{uninorteazul!85!black}}{\thesubsection}{0.6em}{}
+
+\titleformat{\subsubsection}[block]
+  {\normalsize\bfseries\color{uninorteazul!70!black}}{\thesubsubsection}{0.5em}{}
+
+% ─── Listings Python ─────────────────────────────────────────────────────────
+\lstdefinestyle{python}{
+  language=Python,
+  backgroundcolor=\color{fondocodigo},
+  basicstyle=\ttfamily\small\color{white},
+  keywordstyle=\color{keyword}\bfseries,
+  stringstyle=\color{cadena},
+  commentstyle=\color{comentario}\itshape,
+  numberstyle=\tiny\color{grismedio},
+  numbers=left, numbersep=8pt,
+  breaklines=true, breakatwhitespace=true,
+  frame=single, framerule=0.5pt, rulecolor=\color{grismedio},
+  xleftmargin=12pt, xrightmargin=4pt,
+  showstringspaces=false,
+  tabsize=4,
+  morekeywords={import,from,def,return,if,else,elif,for,while,True,False,None,
+                with,as,try,except,class,lambda,in,not,and,or,pass},
+  emph={excel_exportar,countif_visible,procesar_excel,pivotear_excel,
+        procesar_qualtrics,add_table,add_worksheet,write_formula},
+  emphstyle=\color{naranja},
+}
+\lstset{style=python}
+
+% ─── Cajas ───────────────────────────────────────────────────────────────────
+\newtcolorbox{notadev}{
+  enhanced, colback=amarilloclaro, colframe=amarillo,
+  fonttitle=\bfseries, title={\faLightbulb\; Nota para el desarrollador},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=amarillo,rounded corners},
+  rounded corners, arc=4pt, left=6pt, right=6pt, top=8pt, bottom=6pt
+}
+
+\newtcolorbox{bugbox}{
+  enhanced, colback=rojoclaro, colframe=rojo,
+  fonttitle=\bfseries\color{white}, coltitle=white, colbacktitle=rojo,
+  title={\faBug\; Bug corregido},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=rojo,rounded corners},
+  rounded corners, arc=4pt, left=6pt, right=6pt, top=8pt, bottom=6pt
+}
+
+\newtcolorbox{apibox}[1]{
+  enhanced, colback=uninorteclaro, colframe=uninorteazul,
+  fonttitle=\bfseries\color{white}, coltitle=white, colbacktitle=uninorteazul,
+  title={\faCode\; #1},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=uninorteazul,rounded corners},
+  rounded corners, arc=4pt, left=6pt, right=6pt, top=8pt, bottom=6pt, breakable
+}
+
+\newtcolorbox{extbox}{
+  enhanced, colback=verdeclaro, colframe=verdecode,
+  fonttitle=\bfseries\color{white}, coltitle=white, colbacktitle=verdecode,
+  title={\faExpandAlt\; Cómo extender},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=verdecode,rounded corners},
+  rounded corners, arc=4pt, left=6pt, right=6pt, top=8pt, bottom=6pt, breakable
+}
+
+\newtcolorbox{formulabox}[1]{
+  enhanced, colback=grisclaro, colframe=uninorteazul!50,
+  fonttitle=\bfseries, title={\faSuperscript\; #1},
+  attach boxed title to top left={yshift=-2mm,xshift=4mm},
+  boxed title style={colback=uninorteazul!50,rounded corners},
+  rounded corners, arc=4pt, left=10pt, right=10pt, top=8pt, bottom=8pt
+}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+
+% ══ PORTADA ══════════════════════════════════════════════════════════════════
+\begin{titlepage}
+  \pagecolor{uninorteazul}\color{white}\centering
+  \vspace*{1.5cm}
+  {\fontsize{60}{70}\selectfont\faFileCode}\\[0.8cm]
+  {\scshape\large Universidad del Norte}\\[0.3cm]
+  \rule{11cm}{0.5pt}\\[0.6cm]
+  {\fontsize{26}{32}\selectfont\bfseries
+    Sistema Automático de Reportes\\[0.3em]
+    de Satisfacción — Automatización Uninorte
+  }\\[0.8cm]
+  \rule{11cm}{0.5pt}\\[0.8cm]
+  {\Large\bfseries Documentación Técnica Completa}\\[0.5cm]
+  {\normalsize
+    Para desarrolladores, integradores y personal técnico\\[0.3em]
+    que requieran entender, replicar o extender el sistema
+  }
+  \vfill
+  \begin{tcolorbox}[colback=white!12!uninorteazul,colframe=white,
+      width=11cm,rounded corners,arc=6pt,boxrule=1pt]
+    \centering\color{white}\small
+    \faPython\; \textbf{Python 3.8+} \quad
+    \faDesktop\; \textbf{Windows 10/11} \quad
+    \faFileExcel\; \textbf{Microsoft Excel 2010+}\\[4pt]
+    \faTag\; Versión 1.0 \quad
+    \faCalendar\; 2025 \quad
+    \faCodeBranch\; Streamlit + XlsxWriter + win32com
+  \end{tcolorbox}
+  \vspace{1.2cm}
+\end{titlepage}
+\nopagecolor
+
+% ══ TABLA DE CONTENIDOS ══════════════════════════════════════════════════════
+\newpage
+\tableofcontents
+\newpage
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Resumen ejecutivo del sistema}
+% ══════════════════════════════════════════════════════════════════════════════
+
+El sistema \textbf{Automatización Uninorte} es una aplicación web local desarrollada con \textbf{Streamlit} que automatiza la generación de reportes de análisis de satisfacción en formato Excel (\texttt{.xlsx}). Reemplaza un proceso manual que implicaba calcular promedios, construir tablas de frecuencia, crear gráficos y escribir informes por oficina.
+
+El sistema recibe como entrada un archivo Excel con respuestas de encuesta (escala 1--5), y produce como salida un archivo Excel profesional con:
+
+\begin{itemize}[leftmargin=1.5cm]
+  \item Ficha técnica estadística (población, muestra, margen de error).
+  \item Tablas de frecuencia y porcentajes por atributo.
+  \item Índices NSP, NIP e ISC calculados automáticamente.
+  \item Gráficos de distribución (columnas/torta) por pregunta.
+  \item Matriz de Importancia × Satisfacción (análisis de cuadrantes).
+  \item Segmentadores interactivos (slicers) para filtrado dinámico en Excel.
+\end{itemize}
+
+\begin{notadev}
+El sistema está completamente \textbf{desconectado de internet y bases de datos}. Todo el procesamiento ocurre en memoria (pandas DataFrames). No requiere credenciales ni configuración de servidores externos.
+\end{notadev}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Stack tecnológico y dependencias}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Dependencias de producción}
+
+\begin{center}
+\begin{tabular}{>{\ttfamily\bfseries}l l >{\small}l}
+\toprule
+\textbf{Paquete} & \textbf{Versión mínima} & \textbf{Propósito} \\
+\midrule
+streamlit         & 1.28.0  & Framework de interfaz web local \\
+pandas            & 2.0.3   & Manipulación y transformación de datos \\
+xlsxwriter        & 3.1.2   & Escritura de archivos Excel (.xlsx) \\
+numpy             & 1.24.3  & Cálculo numérico y manejo de NaN \\
+matplotlib        & 3.7.2   & Generación de gráficos embebidos \\
+seaborn           & 0.12.2  & Estilos de visualización \\
+streamlit-aggrid  & 0.3.4   & Tablas interactivas en UI Streamlit \\
+openpyxl          & 3.1.2   & Lectura auxiliar de Excel \\
+textwrap3         & 0.9.2   & Ajuste de texto en hojas Excel \\
+pywin32           & 306     & Automatización COM de Excel (slicers) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Restricción de plataforma}
+
+\begin{mdframed}[backgroundcolor=rojoclaro, linecolor=rojo, linewidth=1pt, roundcorner=4pt]
+\textbf{\color{rojo}\faExclamationTriangle\ Crítico:} El paquete \texttt{pywin32} usa la interfaz COM de Windows para crear los segmentadores (slicers) en Excel. Esto implica que:
+\begin{itemize}
+  \item El sistema \textbf{solo funciona en Windows} (10 u 11).
+  \item Requiere \textbf{Microsoft Excel 2010+} instalado localmente.
+  \item En sistemas sin Excel, el reporte se genera correctamente pero \emph{sin slicers}.
+\end{itemize}
+\end{mdframed}
+
+\subsection{Instalación}
+
+\begin{lstlisting}[language=bash, style=python, caption={Instalación de dependencias}]
+pip install streamlit pandas xlsxwriter numpy matplotlib seaborn
+pip install openpyxl textwrap3 pywin32 streamlit-aggrid
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Estructura de archivos del proyecto}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=bash, style=python, caption={Árbol de archivos del proyecto}]
+Automatizacion-Uninorte-main/
+|
+|-- Cargue.py                          # Entrada principal (Streamlit app)
+|-- requirements.txt                   # Dependencias del proyecto
+|-- ejecutar_copia.bat                 # Lanzador rapido Windows
+|-- copiar_script.py                   # Genera generico.py desde plantilla
+|-- crear_generico_ahora.py            # Alternativa para generar generico.py
+|-- diagnostico_qualtrics.py           # Herramienta de diagnostico de datos
+|
+|-- .streamlit/
+|   +-- config.toml                    # Config UI (color, puerto, CORS)
+|
+|-- pages/
+|   |-- Instruciones.py                # Pagina de guia de usuario
+|   +-- Visualizacion.py              # Pagina de visualizacion previa
+|
++-- Script de los formatos/            # 19 scripts, uno por oficina
+    |-- Generararchivoexcel_generico.py             # Oficina generica
+    |-- Generararchivoexcel_admisiones_posgrado.py
+    |-- Generararchivoexcel_Tesoreria.py
+    |-- Generararchivoexcel_Almacen.py
+    |-- Generararchivoexcel_Adquisicion_bienes.py
+    |-- Generararchivoexcel_certificaciones.py
+    |-- Generararchivoexcel_coordinadores.py
+    |-- Generararchivoexcel_Financiamiento_Empresarial.py
+    |-- Generararchivoexcel_laboratori_cimm.py
+    |-- Generararchivoexcel_laboratorio_geotecnia.py
+    |-- Generararchivoexcel_mantenimientoDSA.py
+    |-- Generararchivoexcel_mantenimiento_tic_CSU.py
+    |-- Generararchivoexcel_mantenimiento_tic_trimestre.py
+    |-- Generararchivoexcel_movilidad_entrante.py
+    |-- Generararchivoexcel_oficinaregistro_grado.py
+    |-- Generararchivoexcel_planeacion.py
+    |-- Generararchivoexcel_prueba.py
+    |-- Generararchivoexcel_registro_provedores.py
+    +-- Generararchivoexcel_servicio_transporte_seguridad_Aseo.py
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Módulo principal: Cargue.py}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\texttt{Cargue.py} es el \textbf{punto de entrada} de la aplicación. Streamlit lo ejecuta como servidor web local y gestiona todo el flujo de interacción con el usuario.
+
+\subsection{Responsabilidades}
+
+\begin{enumerate}[leftmargin=1.5cm]
+  \item Renderizar la interfaz web (UI paso a paso).
+  \item Aplicar el modo de procesamiento al DataFrame cargado.
+  \item Mantener estado entre rerenders (\texttt{st.session\_state}).
+  \item Importar dinámicamente el script de la oficina seleccionada.
+  \item Invocar \texttt{excel\_exportar()} con todos los parámetros.
+  \item Ofrecer el archivo generado para descarga.
+\end{enumerate}
+
+\subsection{Funciones de preprocesamiento}
+
+\subsubsection{procesar\_excel(df)}
+
+\begin{apibox}{procesar\_excel(df) → DataFrame}
+Limpia y normaliza un DataFrame de encuesta estándar.
+\begin{itemize}
+  \item Extrae encabezados cortando por el carácter \texttt{'-'} (limpia prefijos de código).
+  \item Aplica \texttt{str.strip()} a todas las celdas string.
+  \item Reemplaza más de 40 variantes textuales de escala (``Satisfecho'', ``Muy satisfecho'', ``Supera notablemente las expectativas'', etc.) por valores numéricos 1--5.
+\end{itemize}
+\textbf{Cuándo usarla:} Archivos exportados directamente de formularios con respuestas en texto.
+\end{apibox}
+
+\subsubsection{pivotear\_excel(df)}
+
+\begin{apibox}{pivotear\_excel(df) → DataFrame}
+Transforma datos en formato largo (caso/pregunta/respuesta) a formato ancho.
+\begin{itemize}
+  \item Detecta automáticamente columnas por palabras clave: \texttt{``caso''}, \texttt{``pregunta''}, \texttt{``respuesta''}.
+  \item Aplica \texttt{pandas.pivot\_table()} con \texttt{aggfunc='first'}.
+  \item Llama a \texttt{procesar\_excel()} sobre el resultado pivoteado.
+\end{itemize}
+\textbf{Cuándo usarla:} Datos exportados de sistemas donde cada fila es una respuesta individual, no un encuestado completo.
+\end{apibox}
+
+\subsubsection{procesar\_qualtrics(df)}
+
+\begin{apibox}{procesar\_qualtrics(df) → DataFrame}
+Maneja el formato especial de exportaciones de la plataforma Qualtrics.
+\begin{itemize}
+  \item La fila 0 del CSV exportado contiene los encabezados técnicos; la fila 1, descripciones en español. Ambas se eliminan como datos.
+  \item Resuelve columnas duplicadas agregando sufijos \texttt{\_1}, \texttt{\_2}, etc.
+  \item Aplica un diccionario extendido de reemplazos para formatos Qualtrics (``5- Totalmente satisfecho'', ``4- Satisfecho'', etc.).
+  \item Convierte la columna \texttt{``Fecha registrada''} al formato \texttt{DD/MM/YYYY}.
+\end{itemize}
+\end{apibox}
+
+\subsection{Diccionario de oficinas}
+
+El diccionario \texttt{diccionario\_oficinas} mapea cada oficina a su script y lista de procesos:
+
+\begin{lstlisting}[caption={Estructura del diccionario de oficinas}]
+diccionario_oficinas = {
+    "Nombre de la Oficina": {
+        "script": "Generararchivoexcel_nombre_script",
+        "procesos": ["Proceso 1", "Proceso 2", ...]
+    },
+    ...
+}
+\end{lstlisting}
+
+\begin{center}
+\begin{longtable}{>{\small}p{5.5cm} >{\small\ttfamily}p{5cm} >{\small}c}
+\toprule
+\textbf{Oficina} & \textbf{Script} & \textbf{N° proc.} \\
+\midrule
+Dirección de Tecnología Informática & mantenimiento\_tic\_trimestre & 1 \\
+Operaciones Tic & mantenimiento\_tic\_CSU & 1 \\
+Dirección de Servicios Administrativos & mantenimientoDSA & 1 \\
+Admisiones & admisiones\_posgrado & 1 \\
+Financiamiento Empresarial & Financiamiento\_Empresarial & 1 \\
+Dirección Financiera & registro\_provedores & 1 \\
+Sección de Compras & Adquisicion\_bienes & 1 \\
+Lab. de Geotecnia & laboratorio\_geotecnia & 1 \\
+Departamento de Registro & coordinadores & 1 \\
+Depto. de Ingeniería Mecánica & laboratori\_cimm & 1 \\
+Tesorería & Tesoreria & 3 \\
+Oficina de Registro & oficinaregistro\_grado & 1 \\
+Oficina de Planeación & planeacion & 1 \\
+Dir. Gestión y Rel. Internacionales & movilidad\_entrante & 3 \\
+Prueba & prueba & 1 \\
+Almacén & Almacen & 1 \\
+Sección de Servicios Generales & servicio\_transporte\_seguridad\_Aseo & 3 \\
+Registro & certificaciones & 1 \\
+\textbf{Oficina Genérica / Personalizada} & \textbf{generico} & \textbf{1} \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\subsection{Importación dinámica del script}
+
+El script correcto se carga en tiempo de ejecución usando \texttt{importlib}:
+
+\begin{lstlisting}[caption={Importación dinámica del módulo de oficina}]
+script_name = diccionario_oficinas[oficina_seleccionada]["script"]
+ruta_script = f"Script de los formatos/{script_name}.py"
+
+spec = importlib.util.spec_from_file_location("modulo_dinamico", ruta_script)
+modulo = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(modulo)
+
+modulo.excel_exportar(df, nombre_archivo, numerodepoblacion,
+                      preguntas, comentarios, general,
+                      oficina, proceso, periodo_unico,
+                      tipos_grafica, filtros_dinamicos)
+\end{lstlisting}
+
+\subsection{Estado de sesión (session\_state)}
+
+Streamlit rerenderiza la página completa en cada interacción. Para preservar los datos entre renderizados se usa \texttt{st.session\_state}:
+
+\begin{center}
+\begin{tabular}{>{\ttfamily}l l}
+\toprule
+\textbf{Clave} & \textbf{Contenido} \\
+\midrule
+df\_encuesta & DataFrame procesado del archivo cargado \\
+archivo\_excel & Objeto del archivo subido \\
+oficina\_seleccionada & Nombre de la oficina elegida \\
+proceso\_seleccionado & Nombre del proceso elegido \\
+columnas\_seleccionadas & Lista de columnas de preguntas \\
+columnas\_observaciones & Lista de columnas de comentarios \\
+nombre\_columna\_general & Nombre de la columna de satisfacción general \\
+columnas\_filtros\_dinamicos & Lista de columnas para slicers \\
+nombre\_oficina\_personalizado & Nombre personalizado (solo para genérica) \\
+ruta\_archivo\_generado & Ruta del Excel generado (para descarga) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Scripts de formato — Función excel\_exportar}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Los 19 scripts en \texttt{Script de los formatos/} siguen un patrón común. Cada uno define exactamente una función pública: \texttt{excel\_exportar()}.
+
+\subsection{Firma de la función}
+
+\begin{apibox}{excel\_exportar — Parámetros}
+\begin{lstlisting}
+def excel_exportar(
+    data,                        # DataFrame: datos de la encuesta procesados
+    nombre_archivo,              # str: nombre del archivo Excel de salida (sin .xlsx)
+    numerodepoblacion,           # int: tamano del universo poblacional
+    Preguntas,                   # list[str]: columnas de preguntas a analizar
+    columnas_observaciones,      # list[str]: columnas de comentarios libres
+    general,                     # str: nombre de la columna de satisfaccion general
+    oficina,                     # str: nombre de la oficina (para encabezado del reporte)
+    proceso,                     # str: nombre del proceso (para encabezado del reporte)
+    perido,                      # str: periodo de la encuesta (ej: "2025-1")
+    tipos_grafica,               # dict[str, str]: {columna: 'pie'|'column'}
+    columnas_filtros_dinamicos=[]# list[str]: columnas para crear slicers (opcional)
+):
+\end{lstlisting}
+\end{apibox}
+
+\subsection{Flujo interno de la función}
+
+La función realiza las siguientes operaciones en orden:
+
+\begin{enumerate}[leftmargin=1.5cm, label=\textbf{\arabic*.}]
+  \item \textbf{Crear workbook XlsxWriter} y determinar \texttt{tiene\_filtros}.
+  \item \textbf{Definir helper \texttt{countif\_visible()}} que genera fórmulas COUNTIF/COUNTIFS según si hay filtros activos.
+  \item \textbf{Escribir hoja ``Digitación''}: datos crudos, tabla TB, columna \_VISIBLE (si aplica).
+  \item \textbf{Calcular estadísticos}: \texttt{n\_estimado}, \texttt{n\_poblacion}, tamaño de muestra esperado.
+  \item \textbf{Escribir hoja ``T+G''}: ficha técnica, tabla de satisfacción general, tablas por atributo, gráficos.
+  \item \textbf{Escribir hojas de observaciones} (columnas libres).
+  \item \textbf{Cerrar workbook} (guarda el archivo en disco).
+  \item \textbf{Crear slicers con win32com} (si hay columnas de filtros seleccionadas).
+\end{enumerate}
+
+\subsection{Helper: countif\_visible}
+
+\begin{lstlisting}[caption={Función helper para fórmulas con soporte de filtros}]
+def countif_visible(columna, criterio):
+    if tiene_filtros:
+        return f'COUNTIFS(TB[{columna}],{criterio},TB[_VISIBLE],1)'
+    else:
+        return f'COUNTIF(TB[{columna}],{criterio})'
+\end{lstlisting}
+
+Cuando el usuario activa un slicer en Excel, las filas ocultas hacen que \texttt{\_VISIBLE} devuelva 0. El COUNTIFS filtra solo las filas con \texttt{\_VISIBLE = 1}, logrando que todas las métricas del reporte se actualicen dinámicamente.
+
+\subsection{Estructura de la hoja ``Digitación''}
+
+\begin{center}
+\begin{tabular}{l l}
+\toprule
+\textbf{Elemento} & \textbf{Detalle} \\
+\midrule
+Tabla TB & Tabla XlsxWriter con todos los datos del DataFrame \\
+Columna \_VISIBLE & Solo si hay filtros. Fórmula \texttt{=SUBTOTAL(103,A\{row\})} \\
+Ancho de columnas & Calculado dinámicamente (máximo entre header y datos) \\
+Fechas & Detectadas y formateadas como \texttt{DD/MM/YYYY} \\
+NaN / Inf & Convertidos a \texttt{None} (celda vacía en Excel) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La lógica del doble \texttt{add\_table} (bug corregido) se implementa como if/else:
+
+\begin{lstlisting}[caption={Creación condicional de la tabla TB}]
+n_rows, n_cols = data.shape
+if tiene_filtros:
+    data['_VISIBLE'] = 1
+    visible_col_idx = data.columns.get_loc('_VISIBLE')
+    Dijitacion.write(0, visible_col_idx, '_VISIBLE')
+    for row_num in range(len(data)):
+        formula = f'=SUBTOTAL(103,A{row_num+2})'
+        Dijitacion.write(row_num+1, visible_col_idx, formula)
+    n_rows, n_cols = data.shape
+    Dijitacion.add_table(0, 0, n_rows, n_cols - 1,
+        {'columns': [{'header': col} for col in data.columns],
+        'name': 'TB'})
+    Dijitacion.set_column(visible_col_idx, visible_col_idx,
+                          None, None, {'hidden': True})
+else:
+    Dijitacion.add_table(0, 0, n_rows, n_cols - 1,
+        {'columns': [{'header': col} for col in data.columns],
+        'name': 'TB'})
+\end{lstlisting}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Fórmulas estadísticas del reporte}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Tamaño de muestra}
+
+Se usa la fórmula de muestra finita para proporciones con 95\% de confianza, $p = q = 0.5$:
+
+\begin{formulabox}{Cálculo de muestra esperada}
+\[
+n_{\text{esperado}} = \left\lceil \frac{384.16}{1 + \dfrac{383.16}{N}} \right\rceil
+\]
+donde $N$ es el número de población ingresado por el usuario. El valor 384.16 corresponde a la muestra para población infinita con nivel de confianza del 95\% y margen de error del 5\%.
+\end{formulabox}
+
+La \textbf{muestra alcanzada} es simplemente el número de filas del DataFrame (\texttt{data.shape[0]}).
+
+\subsection{NSP — Nivel de Satisfacción Ponderado}
+
+\begin{formulabox}{NSP (escala 0–100)}
+\[
+\text{NSP} = \frac{100 \cdot n_5 + 80 \cdot n_4 + 60 \cdot n_3 + 40 \cdot n_2 + 20 \cdot n_1}{n_{\text{total}} - n_{\text{NoAplica}}}
+\]
+donde $n_k$ es el conteo de respuestas con calificación $k$, y $n_{\text{NoAplica}}$ excluye a quienes no aplican.\\[4pt]
+Para obtener NSP en escala 0--5: $\text{NSP}_5 = \dfrac{\text{NSP}}{20}$
+\end{formulabox}
+
+\subsection{NIP — Nivel de Importancia Ponderado}
+
+El NIP mide la importancia relativa de cada atributo a partir de su correlación con la satisfacción general:
+
+\begin{formulabox}{NIP}
+\[
+\text{NIP}_i = \frac{r_i}{\sum_{j=1}^{k} r_j}
+\]
+donde $r_i$ es el coeficiente de correlación de Pearson entre el atributo $i$ y la satisfacción general. Se normaliza para que la suma de todos los NIP sea 1 (o 100\%).
+\end{formulabox}
+
+\subsection{ISC — Índice de Satisfacción del Cliente}
+
+\begin{formulabox}{ISC}
+\[
+\text{ISC} = \sum_{i=1}^{k} \text{NIP}_i \times \text{NSP}_i
+\]
+El ISC es la suma ponderada de la satisfacción de cada atributo, usando el NIP como ponderador. Representa el nivel de satisfacción global teniendo en cuenta la importancia relativa de cada dimensión evaluada.
+\end{formulabox}
+
+\subsection{Matriz de Importancia × Satisfacción}
+
+Cada atributo se ubica en un plano cartesiano donde:
+\begin{itemize}
+  \item \textbf{Eje X}: NSP del atributo (satisfacción).
+  \item \textbf{Eje Y}: NIP del atributo (importancia).
+  \item \textbf{Punto de referencia}: (NSP general, NIP promedio) divide el plano en 4 cuadrantes.
+\end{itemize}
+
+\begin{center}
+\begin{tikzpicture}[scale=1.1]
+  \draw[->] (0,0) -- (5.5,0) node[right] {\small Satisfacción (NSP)};
+  \draw[->] (0,0) -- (0,4.5) node[above] {\small Importancia (NIP)};
+  \draw[dashed, gray] (2.8,0) -- (2.8,4.2);
+  \draw[dashed, gray] (0,2.1) -- (5.2,2.1);
+  \node[align=center] at (1.4,3.1) {\small\color{rojo}\textbf{Zona crítica}\\\small\color{rojo}(mejorar urgente)};
+  \node[align=center] at (4.1,3.1) {\small\color{verdecode}\textbf{Mantener}\\\small\color{verdecode}(fortalezas)};
+  \node[align=center] at (1.4,1.0) {\small\color{grismedio}Baja prioridad};
+  \node[align=center] at (4.1,1.0) {\small\color{naranja}Posible exceso\\\small\color{naranja}de recursos};
+\end{tikzpicture}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Sistema de filtros dinámicos (Slicers)}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Arquitectura de la solución}
+
+Los slicers en Excel solo pueden filtrarse si las fórmulas del reporte ``saben'' qué filas están visibles. La solución implementada usa tres mecanismos complementarios:
+
+\begin{enumerate}[leftmargin=1.5cm, label=\textbf{\arabic*.}]
+  \item \textbf{Columna auxiliar \_VISIBLE} en la tabla TB:
+        \[
+          \texttt{=SUBTOTAL(103, A\{row\})}
+        \]
+        Esta función devuelve 1 si la fila está visible (no filtrada por slicer) y 0 si está oculta.
+  \item \textbf{Cambio de COUNTIF a COUNTIFS} en todas las fórmulas del reporte:
+        \begin{itemize}
+          \item \textbf{Sin filtros:} \texttt{=COUNTIF(TB[columna], criterio)}
+          \item \textbf{Con filtros:} \texttt{=COUNTIFS(TB[columna], criterio, TB[\_VISIBLE], 1)}
+        \end{itemize}
+  \item \textbf{Denominadores dinámicos}: en lugar de usar \texttt{n\_estimado} (constante), las fórmulas de porcentaje usan \texttt{\$G\$11} (celda ``Muestra alcanzada'' en T+G), que se actualiza cuando cambia el filtro.
+\end{enumerate}
+
+\subsection{Creación de slicers con win32com}
+
+Los slicers se crean \emph{después} de cerrar el workbook XlsxWriter (el archivo debe existir en disco antes de que Excel lo abra):
+
+\begin{lstlisting}[caption={Creación de slicers mediante COM de Excel}]
+import win32com.client
+import pythoncom
+
+workbook.close()   # <- PRIMERO cerrar/guardar el archivo
+
+pythoncom.CoInitialize()
+excel = win32com.client.Dispatch("Excel.Application")
+excel.DisplayAlerts = False
+wb = excel.Workbooks.Open(os.path.abspath(f'{nombre_archivo}.xlsx'))
+
+ws_digitacion = wb.Worksheets("Digitacion")
+ws_tg = wb.Worksheets("T+G")
+
+tabla_tb = ws_digitacion.ListObjects("TB")
+
+for idx, columna in enumerate(columnas_filtros_dinamicos):
+    slicer_cache = wb.SlicerCaches.Add(
+        Source=tabla_tb, SourceField=columna
+    )
+    slicer = slicer_cache.Slicers.Add(SlicerDestination=ws_tg)
+    slicer.Top    = 50 + (idx * 220)
+    slicer.Left   = 50
+    slicer.Height = 200
+    slicer.Width  = 250
+
+wb.Save()
+wb.Close()
+excel.Quit()
+pythoncom.CoUninitialize()
+\end{lstlisting}
+
+\begin{notadev}
+El orden es crítico: \texttt{workbook.close()} debe ejecutarse \textbf{antes} de que win32com intente abrir el archivo. Si el archivo no existe en disco, Excel no puede abrirlo y la creación de slicers falla silenciosamente.
+\end{notadev}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Páginas Streamlit adicionales}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{pages/Instruciones.py}
+
+Página estática de guía de usuario. Muestra pasos de uso, formato esperado del Excel de entrada y recomendaciones de calidad de datos. No contiene lógica de negocio.
+
+\subsection{pages/Visualizacion.py}
+
+Página de previsualización de resultados antes de generar el Excel. Lee el DataFrame del \texttt{st.session\_state} y renderiza:
+
+\begin{itemize}[leftmargin=1.5cm]
+  \item Nivel de satisfacción general (escala 0--100 y 0--5) como métrica destacada.
+  \item Gráficos de barras horizontales por cada pregunta (layout en 2 columnas).
+  \item Tabla NIP/NSP con código de colores por nivel de importancia (usando \texttt{st\_aggrid}).
+  \item Cálculo del ISC.
+  \item Scatter plot interactivo de Importancia × Satisfacción.
+\end{itemize}
+
+\begin{notadev}
+Esta página importa \texttt{AgGrid} de \texttt{st\_aggrid}. Si el paquete no está instalado, la aplicación lanzará un \texttt{ModuleNotFoundError} al navegar a esta página. Solución: \texttt{pip install streamlit-aggrid}.
+\end{notadev}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Bugs conocidos y correcciones aplicadas}
+% ══════════════════════════════════════════════════════════════════════════════
+
+Las siguientes correcciones fueron aplicadas a los 17 scripts de formato que presentaban los bugs (todos excepto \texttt{generico.py}, que ya estaba correcto):
+
+\begin{bugbox}
+\textbf{Bug A — Tabla TB creada dos veces (crash con filtros)}\\[4pt]
+\textit{Síntoma:} XlsxWriter lanza excepción ``Duplicate table name 'TB''' al intentar generar un reporte con filtros dinámicos activos.\\[4pt]
+\textit{Causa:} La tabla se creaba una vez incondicionalmente (\texttt{add\_table} antes del bloque \texttt{if tiene\_filtros}), y luego una segunda vez dentro del bloque \texttt{if tiene\_filtros}.\\[4pt]
+\textit{Corrección:} Restructurar como \texttt{if/else}: una rama crea la tabla con \texttt{\_VISIBLE}, la otra sin ella.\\[4pt]
+\textit{Archivos afectados:} 17 de 19 scripts (todos excepto \texttt{generico.py} y \texttt{mantenimientoDSA.py}).
+\end{bugbox}
+
+\begin{bugbox}
+\textbf{Bug B — workbook.close() después del bloque de slicers}\\[4pt]
+\textit{Síntoma:} Los segmentadores nunca se creaban. win32com abría un archivo vacío o lanzaba error de archivo no encontrado.\\[4pt]
+\textit{Causa:} \texttt{workbook.close()} estaba al final del script (línea ~1330), pero win32com intentaba abrir el archivo en línea ~1190. El archivo no había sido guardado en disco todavía.\\[4pt]
+\textit{Corrección:} Mover \texttt{workbook.close()} inmediatamente antes del bloque \texttt{if columnas\_filtros\_dinamicos}.\\[4pt]
+\textit{Archivos afectados:} 17 de 19 scripts.
+\end{bugbox}
+
+\begin{bugbox}
+\textbf{Bug C — COUNTIF hardcodeado en fórmulas de atributos}\\[4pt]
+\textit{Síntoma:} Los segmentadores filtraban la hoja de datos, pero las tablas y métricas de atributos individuales no se actualizaban.\\[4pt]
+\textit{Causa:} Las fórmulas de distribución por atributo (bloques izquierdo y derecho) usaban \texttt{COUNTIF(TB[...], ...)} con \texttt{n\_estimado} hardcodeado como denominador, en lugar de llamar al helper \texttt{countif\_visible()}.\\[4pt]
+\textit{Corrección:} Reemplazar con \texttt{countif\_visible()} y usar \texttt{denominador\_attr = '\$G\$11' if tiene\_filtros else str(n\_estimado)}.\\[4pt]
+\textit{Archivos afectados:} 17 de 19 scripts.
+\end{bugbox}
+
+\begin{bugbox}
+\textbf{Bug D — Error de indentación en el bucle de anchos de columna}\\[4pt]
+\textit{Síntoma:} \texttt{IndentationError: unindent does not match any outer indentation level} al importar el script.\\[4pt]
+\textit{Causa:} El bucle \texttt{for col\_num, col\_name in enumerate(data.columns)} estaba al nivel de indentación 0 (fuera de la función) en los scripts con la variante de código legacy.\\[4pt]
+\textit{Corrección:} Agregar 4 espacios de indentación para que el bucle quede dentro de \texttt{excel\_exportar}.
+\end{bugbox}
+
+\begin{bugbox}
+\textbf{Bug E — Variable denominador sin definir}\\[4pt]
+\textit{Síntoma:} \texttt{UnboundLocalError: cannot access local variable 'denominador'}.\\[4pt]
+\textit{Causa:} En el bucle \texttt{for col in range(17, 23)}, la variable \texttt{denominador} se asignaba solo dentro de \texttt{if col==22}, pero se usaba en el \texttt{else} antes de llegar a esa iteración.\\[4pt]
+\textit{Corrección:} Definir \texttt{denominador = '\$G\$11' if tiene\_filtros else str(n\_estimado)} antes del bucle.\\[4pt]
+\textit{Archivos afectados:} \texttt{mantenimientoDSA.py}.
+\end{bugbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Cómo agregar una nueva oficina}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{extbox}
+Para agregar soporte para una nueva oficina al sistema se deben seguir exactamente estos 3 pasos:
+
+\textbf{Paso 1 — Crear el script de formato}
+
+Copiar \texttt{Generararchivoexcel\_generico.py} (es la plantilla más actualizada y correcta) con el nuevo nombre:
+\begin{lstlisting}[language=bash]
+copy "Script de los formatos\Generararchivoexcel_generico.py" ^
+     "Script de los formatos\Generararchivoexcel_NombreNuevaOficina.py"
+\end{lstlisting}
+
+Editar el encabezado del reporte dentro de la función \texttt{excel\_exportar} para que muestre el nombre de la nueva oficina y proceso. El resto de la lógica (estadísticos, gráficos, slicers) no necesita modificarse.
+
+\textbf{Paso 2 — Registrar en el diccionario de oficinas (Cargue.py)}
+
+Agregar una entrada en \texttt{diccionario\_oficinas} dentro de \texttt{Cargue.py}:
+\begin{lstlisting}
+diccionario_oficinas["Nombre de la Nueva Oficina"] = {
+    "script": "Generararchivoexcel_NombreNuevaOficina",
+    "procesos": ["Proceso A", "Proceso B"]
+}
+\end{lstlisting}
+
+\textbf{Paso 3 — Reiniciar la aplicación}
+\begin{lstlisting}[language=bash]
+python -m streamlit run Cargue.py
+\end{lstlisting}
+
+La nueva oficina aparecerá automáticamente en el menú desplegable.
+\end{extbox}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Flujo de datos completo (End-to-End)}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.5cm,
+  box/.style={rectangle, rounded corners=4pt, draw=uninorteazul,
+              fill=uninorteclaro, text width=3.8cm, align=center,
+              minimum height=0.9cm, font=\small},
+  dec/.style={diamond, draw=amarillo, fill=amarilloclaro,
+              text width=2.2cm, align=center, font=\small\bfseries,
+              inner sep=1pt},
+  arr/.style={-{Latex[length=2mm]}, thick, color=uninorteazul},
+  side/.style={rectangle, rounded corners=3pt, draw=verdecode,
+               fill=verdeclaro, text width=3cm, align=center,
+               font=\small, minimum height=0.8cm}
+]
+
+\node[box] (upload) {Usuario sube archivo \texttt{.xlsx}};
+\node[dec, below=of upload] (metodo) {Método?};
+\node[box, below left=0.6cm and 1.2cm of metodo]  (proc) {procesar\_ excel()};
+\node[box, below=1.2cm of metodo]                  (piv)  {pivotear\_ excel()};
+\node[box, below right=0.6cm and 1.2cm of metodo] (qual) {procesar\_ qualtrics()};
+\node[box, below=1.6cm of piv] (df) {DataFrame limpio en session\_state};
+\node[box, below=0.7cm of df]  (conf) {Usuario configura: oficina, columnas, filtros};
+\node[box, below=0.7cm of conf] (import) {importlib carga el script de la oficina};
+\node[box, below=0.7cm of import] (exportar) {excel\_exportar() genera el reporte};
+\node[dec, below=0.7cm of exportar] (filtros) {¿Hay filtros?};
+\node[box, below left=0.6cm and 1.5cm of filtros] (close) {workbook.close()};
+\node[box, below right=0.6cm and 1.5cm of filtros] (noclose) {workbook.close()};
+\node[box, below=0.7cm of close] (win32) {win32com crea slicers};
+\node[box, below=1.4cm of filtros] (xlsx) {\texttt{reporte.xlsx} guardado};
+\node[box, below=0.7cm of xlsx] (dl) {Botón de descarga};
+
+\draw[arr] (upload) -- (metodo);
+\draw[arr] (metodo) -| node[above,font=\tiny]{Procesar} (proc);
+\draw[arr] (metodo) -- node[right,font=\tiny]{Pivotear} (piv);
+\draw[arr] (metodo) -| node[above,font=\tiny]{Qualtrics} (qual);
+\draw[arr] (proc)   |- (df);
+\draw[arr] (piv)    -- (df);
+\draw[arr] (qual)   |- (df);
+\draw[arr] (df)     -- (conf);
+\draw[arr] (conf)   -- (import);
+\draw[arr] (import) -- (exportar);
+\draw[arr] (exportar) -- (filtros);
+\draw[arr] (filtros) -| node[above,font=\tiny]{Sí} (close);
+\draw[arr] (filtros) -| node[above,font=\tiny]{No} (noclose);
+\draw[arr] (close)  -- (win32);
+\draw[arr] (win32)  |- (xlsx);
+\draw[arr] (noclose)|- (xlsx);
+\draw[arr] (xlsx)   -- (dl);
+\end{tikzpicture}
+\end{center}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Configuración del sistema}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{.streamlit/config.toml}
+
+\begin{lstlisting}[language=bash, caption={Configuración de Streamlit}]
+[server]
+headless = true       # No abre ventana del navegador automaticamente
+port = 8501           # Puerto local
+enableCORS = false    # Desactivar CORS (uso local)
+
+[theme]
+primaryColor = "#2f3e75"             # Azul institucional Uninorte
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f4fc"
+textColor = "#262730"
+\end{lstlisting}
+
+\subsection{Variables de entorno y credenciales}
+
+El sistema \textbf{no requiere} ninguna variable de entorno, archivo \texttt{.env}, API key, ni conexión a base de datos. Todo el procesamiento es local y en memoria.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Cómo ejecutar el sistema}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{lstlisting}[language=bash, caption={Comandos de instalación y ejecución}]
+# 1. Instalar dependencias (solo primera vez)
+pip install streamlit pandas xlsxwriter numpy matplotlib seaborn
+pip install openpyxl textwrap3 pywin32 streamlit-aggrid
+
+# 2. Posicionarse en la carpeta del proyecto
+cd "ruta\al\proyecto\Automatizacion-Uninorte-main"
+
+# 3. Lanzar la aplicacion
+python -m streamlit run Cargue.py
+
+# La app abre en: http://localhost:8501
+\end{lstlisting}
+
+Para \textbf{detener} la aplicación: presionar \texttt{Ctrl + C} en la terminal.
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Limitaciones conocidas y mejoras sugeridas}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\subsection{Limitaciones actuales}
+
+\begin{enumerate}[leftmargin=1.5cm, label=\textbf{\arabic*.}]
+  \item \textbf{Solo Windows:} \texttt{pywin32} requiere la interfaz COM de Windows. En Linux/Mac los slicers no se pueden crear. El resto del sistema funciona sin cambios.
+  \item \textbf{Excel local obligatorio para slicers:} Se necesita Microsoft Excel instalado. LibreOffice no soporta la API COM.
+  \item \textbf{Escala 1--5 fija:} El sistema asume respuestas en escala Likert de 5 puntos. Otras escalas requieren modificar los diccionarios de reemplazo y las fórmulas NSP.
+  \item \textbf{Máximo ~5.000 filas con buen rendimiento:} Para datasets más grandes, la generación puede tardar varios minutos.
+  \item \textbf{Scripts de formato son casi idénticos:} Los 19 scripts son copias con variaciones mínimas. Cualquier corrección global debe propagarse a todos los archivos.
+  \item \textbf{Sin autenticación ni multiusuario:} El sistema es para uso local, una persona a la vez. No está diseñado para exposición en internet.
+\end{enumerate}
+
+\subsection{Mejoras sugeridas}
+
+\begin{itemize}[leftmargin=1.5cm]
+  \item \textbf{Refactorización en clase base:} Crear una clase \texttt{ReporteBase} con toda la lógica común y que cada script la herede, eliminando la duplicación de 27.000+ líneas.
+  \item \textbf{Compatibilidad multiplataforma:} Reemplazar la creación de slicers por \texttt{openpyxl} cuando esté disponible, o usar una librería como \texttt{xlwings} que soporta macOS.
+  \item \textbf{Caché de DataFrame:} Usar \texttt{@st.cache\_data} para evitar reprocesar el archivo en cada interacción de la UI.
+  \item \textbf{Pruebas unitarias:} Agregar tests para las funciones \texttt{procesar\_excel}, \texttt{pivotear\_excel} y los cálculos NSP/NIP/ISC usando \texttt{pytest}.
+  \item \textbf{Soporte de escala configurable:} Parametrizar la escala (actualmente fija en 1--5) para soportar escalas de satisfacción de 1--7 o similares.
+  \item \textbf{Exportación en PDF:} Agregar una opción para generar el reporte también en PDF usando \texttt{reportlab} o \texttt{weasyprint}.
+\end{itemize}
+
+% ══════════════════════════════════════════════════════════════════════════════
+\section{Referencia rápida para el desarrollador}
+% ══════════════════════════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{>{\bfseries\small}p{4.5cm} >{\small}p{9cm}}
+\toprule
+Tarea & Cómo hacerlo \\
+\midrule
+Agregar una oficina & Copiar \texttt{generico.py}, renombrar, registrar en \texttt{diccionario\_oficinas} de \texttt{Cargue.py} \\
+\addlinespace
+Agregar un proceso a oficina existente & Agregar string al array \texttt{"procesos"} en \texttt{diccionario\_oficinas} \\
+\addlinespace
+Cambiar colores del reporte Excel & Modificar los \texttt{workbook.add\_format()} en el script de la oficina correspondiente \\
+\addlinespace
+Agregar nueva variante de texto Likert & Agregar al diccionario \texttt{reemplazos} en \texttt{procesar\_excel()} o \texttt{procesar\_qualtrics()} \\
+\addlinespace
+Cambiar puerto de Streamlit & Editar \texttt{port} en \texttt{.streamlit/config.toml} \\
+\addlinespace
+Cambiar colores de la UI & Editar \texttt{primaryColor} en \texttt{.streamlit/config.toml} \\
+\addlinespace
+Depurar generación del Excel & Los scripts imprimen mensajes \texttt{DEBUG} en consola durante la ejecución \\
+\addlinespace
+Generar \texttt{generico.py} desde plantilla & Ejecutar \texttt{python copiar\_script.py} \\
+\addlinespace
+Diagnosticar datos Qualtrics & Ejecutar \texttt{python diagnostico\_qualtrics.py} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+% ════════════════════════════════════════════════════════════════════════════
+%  PIE FINAL
+% ════════════════════════════════════════════════════════════════════════════
+\vfill
+\begin{center}
+  \color{grismedio}\rule{0.6\linewidth}{0.4pt}\\[6pt]
+  \small Universidad del Norte · Dirección de Tecnología Informática y Comunicaciones\\
+  Documentación generada para uso interno — Versión 1.0 · 2025
+\end{center}
+
+\end{document}

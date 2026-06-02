@@ -1,0 +1,711 @@
+\documentclass[12pt, letterpaper]{article}
+
+% ─── Paquetes ───────────────────────────────────────────────────────────────
+\usepackage[spanish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{mdframed}
+\usepackage{enumitem}
+\usepackage{fontawesome5}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{parskip}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{float}
+\usepackage{caption}
+
+\tcbuselibrary{skins, breakable, listings}
+
+% ─── Geometría ──────────────────────────────────────────────────────────────
+\geometry{
+  top=2.5cm, bottom=2.5cm,
+  left=2.8cm, right=2.8cm
+}
+
+% ─── Colores institucionales ────────────────────────────────────────────────
+\definecolor{uninorteazul}{RGB}{47, 62, 117}
+\definecolor{uninorteclaro}{RGB}{220, 230, 250}
+\definecolor{verdepaso}{RGB}{39, 174, 96}
+\definecolor{verdeclaro}{RGB}{212, 245, 225}
+\definecolor{amarilloaviso}{RGB}{255, 193, 7}
+\definecolor{amarilloclaro}{RGB}{255, 248, 220}
+\definecolor{rojopeligro}{RGB}{192, 57, 43}
+\definecolor{rojoclaro}{RGB}{250, 220, 215}
+\definecolor{grisclaro}{RGB}{245, 245, 245}
+\definecolor{grismedio}{RGB}{180, 180, 180}
+\definecolor{codigofondo}{RGB}{30, 30, 30}
+\definecolor{codigotexto}{RGB}{220, 220, 170}
+\definecolor{marcoimg}{RGB}{100, 120, 180}
+
+% ─── Hyperref ───────────────────────────────────────────────────────────────
+\hypersetup{
+  colorlinks=true,
+  linkcolor=uninorteazul,
+  urlcolor=uninorteazul,
+  pdftitle={Instructivo - Sistema de Reportes Uninorte},
+  pdfauthor={Universidad del Norte}
+}
+
+% ─── Encabezado y pie de página ─────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\color{uninorteazul}\textbf{Sistema de Reportes — Universidad del Norte}}
+\fancyhead[R]{\small\color{grismedio}Guía de Instalación}
+\fancyfoot[C]{\small\color{grismedio}\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% ─── Títulos de sección ─────────────────────────────────────────────────────
+\titleformat{\section}[block]
+  {\Large\bfseries\color{uninorteazul}}
+  {\colorbox{uninorteazul}{\color{white}\,\thesection\,}}{0.8em}{}
+  [\vspace{-0.3em}\color{uninorteazul}\rule{\linewidth}{1.5pt}\vspace{0.3em}]
+
+\titleformat{\subsection}[block]
+  {\large\bfseries\color{uninorteazul!80!black}}
+  {\thesubsection}{0.6em}{}
+
+% ─── Cajas de entorno ───────────────────────────────────────────────────────
+
+\newtcolorbox{paso}[2][]{
+  enhanced, breakable,
+  colback=verdeclaro,
+  colframe=verdepaso,
+  fonttitle=\bfseries\color{white},
+  coltitle=white,
+  colbacktitle=verdepaso,
+  title={\faCheckCircle\quad Paso #2},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=verdepaso, rounded corners},
+  rounded corners, arc=4pt,
+  left=6pt, right=6pt, top=8pt, bottom=6pt,
+  #1
+}
+
+\newtcolorbox{aviso}[1][Importante]{
+  enhanced,
+  colback=amarilloclaro,
+  colframe=amarilloaviso,
+  fonttitle=\bfseries,
+  coltitle=black,
+  colbacktitle=amarilloaviso,
+  title={\faExclamationTriangle\quad #1},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=amarilloaviso, rounded corners},
+  rounded corners, arc=4pt,
+  left=6pt, right=6pt, top=8pt, bottom=6pt,
+}
+
+\newtcolorbox{solucion}[1][Si algo falla]{
+  enhanced,
+  colback=rojoclaro,
+  colframe=rojopeligro,
+  fonttitle=\bfseries\color{white},
+  coltitle=white,
+  colbacktitle=rojopeligro,
+  title={\faTimesCircle\quad #1},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=rojopeligro, rounded corners},
+  rounded corners, arc=4pt,
+  left=6pt, right=6pt, top=8pt, bottom=6pt,
+}
+
+\newtcolorbox{info}[1][Dato útil]{
+  enhanced,
+  colback=uninorteclaro,
+  colframe=uninorteazul,
+  fonttitle=\bfseries\color{white},
+  coltitle=white,
+  colbacktitle=uninorteazul,
+  title={\faInfoCircle\quad #1},
+  attach boxed title to top left={yshift=-2mm, xshift=4mm},
+  boxed title style={colback=uninorteazul, rounded corners},
+  rounded corners, arc=4pt,
+  left=6pt, right=6pt, top=8pt, bottom=6pt,
+}
+
+\newtcolorbox{comando}{
+  enhanced,
+  colback=codigofondo,
+  colframe=grismedio,
+  coltext=codigotexto,
+  fontupper=\ttfamily\small,
+  rounded corners, arc=3pt,
+  left=10pt, right=10pt, top=6pt, bottom=6pt,
+  boxrule=0.5pt,
+}
+
+% ─── Comando para capturas de pantalla enmarcadas ───────────────────────────
+\newcommand{\captura}[2][]{%
+  \begin{tcolorbox}[
+    enhanced,
+    colback=white,
+    colframe=marcoimg,
+    boxrule=1pt,
+    arc=6pt,
+    drop shadow={opacity=0.18, shadow xshift=3pt, shadow yshift=-3pt, fill=uninorteazul!30},
+    left=4pt, right=4pt, top=4pt, bottom=0pt,
+    #1
+  ]
+    \includegraphics[width=\linewidth]{#2}%
+  \end{tcolorbox}%
+}
+
+\newcommand{\capturaConTitulo}[3][]{%
+  \begin{tcolorbox}[
+    enhanced, breakable,
+    colback=white,
+    colframe=marcoimg,
+    fonttitle=\small\bfseries\color{white},
+    colbacktitle=uninorteazul,
+    coltitle=white,
+    title={\faDesktop\quad #2},
+    attach boxed title to top left={yshift=-2mm, xshift=4mm},
+    boxed title style={colback=uninorteazul, rounded corners},
+    boxrule=1pt,
+    arc=6pt,
+    drop shadow={opacity=0.18, shadow xshift=3pt, shadow yshift=-3pt, fill=uninorteazul!30},
+    left=4pt, right=4pt, top=8pt, bottom=0pt,
+    #1
+  ]
+    \includegraphics[width=\linewidth]{#3}%
+  \end{tcolorbox}%
+}
+
+% ─── Documento ──────────────────────────────────────────────────────────────
+\begin{document}
+
+% ════════════════════════════════════════════════════════
+%  PORTADA
+% ════════════════════════════════════════════════════════
+\begin{titlepage}
+  \pagecolor{uninorteazul}
+  \color{white}
+  \centering
+  \vspace*{2cm}
+
+  {\fontsize{72}{80}\selectfont \faFileMedical}
+
+  \vspace{1cm}
+  {\fontsize{11}{13}\selectfont\scshape Universidad del Norte}
+
+  \vspace{0.4cm}
+  \rule{10cm}{0.5pt}
+  \vspace{0.6cm}
+
+  {\fontsize{28}{34}\selectfont\bfseries
+    Sistema Automático\\[0.3em]
+    de Reportes de\\[0.3em]
+    Satisfacción
+  }
+
+  \vspace{0.8cm}
+  \rule{10cm}{0.5pt}
+  \vspace{0.8cm}
+
+  {\fontsize{16}{20}\selectfont
+    \textbf{Instructivo de Instalación y Uso}\\[0.4em]
+    \normalsize Para personas sin conocimientos de programación
+  }
+
+  \vfill
+
+  \begin{tcolorbox}[
+    colback=white!15!uninorteazul,
+    colframe=white,
+    width=10cm,
+    rounded corners, arc=6pt,
+    boxrule=1pt
+  ]
+    \centering\color{white}
+    \small
+    \faWindows\; \textbf{Requisito:} Windows 10 u 11\\[4pt]
+    \faClock\; \textbf{Tiempo estimado:} 15 a 25 minutos\\[4pt]
+    \faDesktop\; \textbf{Nivel:} Sin experiencia en programación
+  \end{tcolorbox}
+
+  \vspace{1.5cm}
+  {\small Versión 1.0 — 2025}
+
+\end{titlepage}
+\nopagecolor
+
+% ════════════════════════════════════════════════════════
+%  TABLA DE CONTENIDO
+% ════════════════════════════════════════════════════════
+\newpage
+\tableofcontents
+\newpage
+
+% ════════════════════════════════════════════════════════
+\section{¿Qué hace este programa?}
+% ════════════════════════════════════════════════════════
+
+Este programa convierte los resultados de las encuestas de satisfacción en reportes de Excel completos y profesionales, de forma automática.
+
+En lugar de calcular manualmente promedios, porcentajes y crear gráficos, usted simplemente:
+
+\begin{enumerate}[leftmargin=1.5cm, label=\textcolor{verdepaso}{\textbf{\arabic*.}}]
+  \item Sube el archivo de Excel con los datos de la encuesta.
+  \item Elige la oficina y el proceso correspondiente.
+  \item Hace clic en un botón.
+  \item Descarga el reporte terminado con tablas, gráficos y filtros interactivos.
+\end{enumerate}
+
+\vspace{0.5em}
+
+\capturaConTitulo{Vista general de la plataforma}{Programa 5.png}
+
+\vspace{0.5em}
+
+\begin{info}[¿Qué contiene el reporte generado?]
+  El archivo de Excel que se genera incluye automáticamente:
+  \begin{itemize}[leftmargin=0.5cm]
+    \item Ficha técnica con tamaño de muestra y margen de error.
+    \item Tablas de satisfacción por cada pregunta de la encuesta.
+    \item Gráficos de torta y barras para cada atributo evaluado.
+    \item Índice de Satisfacción del Cliente (ISC).
+    \item Matriz de Importancia vs. Satisfacción.
+    \item Filtros interactivos (segmentadores) para explorar los datos.
+  \end{itemize}
+\end{info}
+
+% ════════════════════════════════════════════════════════
+\section{¿Qué necesito antes de empezar?}
+% ════════════════════════════════════════════════════════
+
+Antes de instalar el programa, verifique que su computador tenga lo siguiente:
+
+\vspace{0.5em}
+
+\begin{center}
+\begin{tabular}{>{\centering\arraybackslash}m{1.5cm} >{\bfseries}m{4cm} m{8.5cm}}
+  \toprule
+  \textcolor{uninorteazul}{\Large\faWindows} & Sistema Operativo &
+    Windows 10 o Windows 11 (el programa \textbf{no funciona en Mac ni Linux}) \\
+  \midrule
+  \textcolor{uninorteazul}{\Large\faFileExcel} & Microsoft Excel &
+    Excel 2010 o superior instalado en el computador \\
+  \midrule
+  \textcolor{uninorteazul}{\Large\faWifi} & Internet &
+    Conexión activa durante la instalación (solo la primera vez) \\
+  \midrule
+  \textcolor{uninorteazul}{\Large\faHdd} & Espacio en disco &
+    Al menos 1 GB de espacio libre disponible \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.8em}
+
+\begin{aviso}[Antes de continuar]
+  Si no tiene Microsoft Excel instalado, el programa generará el reporte de Excel normalmente, pero \textbf{los filtros interactivos (segmentadores) no se crearán}. Todo lo demás funcionará sin problema.
+\end{aviso}
+
+% ════════════════════════════════════════════════════════
+\section{Instalación de Python}
+% ════════════════════════════════════════════════════════
+
+Python es el motor que hace funcionar este programa. Si nunca ha escuchado este nombre, no se preocupe — es simplemente un programa gratuito que debe instalar una sola vez.
+
+\begin{paso}{1 — Descargar Python}
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{uninorteazul}{\arabic*.}]
+    \item Abra su navegador de internet (Chrome, Edge, Firefox, etc.)
+    \item Vaya a la siguiente dirección web:\\[4pt]
+          \texttt{\href{https://www.python.org/downloads/}{https://www.python.org/downloads/}}
+    \item Verá un botón amarillo grande que dice \textbf{``Download Python 3.x.x''}. Haga clic en él.
+    \item El archivo se descargará automáticamente (pesa aproximadamente 25 MB).
+  \end{enumerate}
+\end{paso}
+
+\begin{paso}{2 — Instalar Python}
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{uninorteazul}{\arabic*.}]
+    \item Abra el archivo que descargó (termina en \texttt{.exe}).
+    \item \textbf{MUY IMPORTANTE:} Antes de hacer clic en ``Install Now'', marque la casilla que dice:\\[4pt]
+          \colorbox{amarilloclaro}{\quad\faCheckSquare\; \textbf{Add Python to PATH}\quad}\\[4pt]
+          Esta casilla aparece en la parte inferior de la primera ventana del instalador.
+    \item Haga clic en \textbf{``Install Now''}.
+    \item Espere a que termine la instalación (1 a 3 minutos).
+    \item Haga clic en \textbf{``Close''} cuando aparezca el mensaje de éxito.
+  \end{enumerate}
+\end{paso}
+
+\begin{aviso}[¿Cómo sé si Python ya estaba instalado?]
+  Presione las teclas \textbf{Windows + R} al mismo tiempo, escriba \texttt{cmd} y presione Enter. En la ventana negra que aparece, escriba:
+  \begin{comando}
+    python --version
+  \end{comando}
+  Si aparece algo como \texttt{Python 3.x.x}, ya tiene Python instalado y puede saltar al paso 4.
+\end{aviso}
+
+% ════════════════════════════════════════════════════════
+\section{Descargar los archivos del programa}
+% ════════════════════════════════════════════════════════
+
+\begin{paso}{3 — Obtener los archivos del proyecto}
+
+  Si ya tiene una carpeta con los archivos del proyecto (por ejemplo, si se los enviaron por correo o los descargó de un servidor), sáltese este paso.
+
+  Si necesita descargarlos:
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{uninorteazul}{\arabic*.}]
+    \item Asegúrese de tener el archivo comprimido del proyecto (\texttt{.zip}).
+    \item Haga clic derecho sobre el archivo \texttt{.zip}.
+    \item Seleccione \textbf{``Extraer todo...''} o \textbf{``Extract All...''}
+    \item Elija una ubicación fácil de encontrar, por ejemplo:\\
+          \texttt{C:\textbackslash{}Usuarios\textbackslash{}SuNombre\textbackslash{}Desktop\textbackslash{}Automatizacion-Uninorte}
+    \item Haga clic en \textbf{``Extraer''}.
+  \end{enumerate}
+
+  Al final, debe tener una carpeta que contenga (entre otros) el archivo \texttt{Cargue.py}.
+\end{paso}
+
+\begin{info}[¿Cómo encontrar la ruta de la carpeta?]
+  Abra la carpeta del proyecto en el Explorador de Archivos, haga clic en la barra de dirección (arriba, donde aparece la ruta de la carpeta) y copie el texto que aparece. Lo necesitará en el siguiente paso.
+\end{info}
+
+% ════════════════════════════════════════════════════════
+\section{Abrir la ventana de comandos}
+% ════════════════════════════════════════════════════════
+
+La \textbf{ventana de comandos} (también llamada ``terminal'' o ``consola'') es una ventana de texto negro donde usted escribe instrucciones para el computador. No tiene que entender cómo funciona; solo debe copiar y pegar los comandos que se indican en este instructivo.
+
+\begin{paso}{4 — Abrir la terminal en la carpeta del proyecto}
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{uninorteazul}{\arabic*.}]
+    \item Abra el \textbf{Explorador de Archivos} de Windows.
+    \item Navegue hasta la carpeta del proyecto (la que contiene \texttt{Cargue.py}).
+    \item En la barra de dirección superior (donde aparece la ruta de la carpeta), haga clic una vez para seleccionar todo el texto.
+    \item Borre el texto que aparece y escriba exactamente:
+    \begin{comando}
+      cmd
+    \end{comando}
+    \item Presione \textbf{Enter}. Se abrirá una ventana negra ya posicionada dentro de su carpeta del proyecto.
+  \end{enumerate}
+\end{paso}
+
+\begin{aviso}[Alternativa si el método anterior no funciona]
+  Presione \textbf{Windows + R}, escriba \texttt{cmd} y presione Enter. Luego escriba el siguiente comando reemplazando la ruta con la de su carpeta:
+  \begin{comando}
+    cd "C:\textbackslash{}ruta\textbackslash{}de\textbackslash{}su\textbackslash{}carpeta\textbackslash{}del\textbackslash{}proyecto"
+  \end{comando}
+  Por ejemplo: \texttt{cd "C:\textbackslash{}Users\textbackslash{}Maria\textbackslash{}Desktop\textbackslash{}Automatizacion-Uninorte"}
+\end{aviso}
+
+% ════════════════════════════════════════════════════════
+\section{Instalación de las librerías necesarias}
+% ════════════════════════════════════════════════════════
+
+Las \textbf{librerías} son pequeños programas adicionales que el sistema necesita para funcionar. Solo deben instalarse una vez. Con la terminal abierta en la carpeta del proyecto, siga los pasos a continuación.
+
+\begin{paso}{5 — Instalar las librerías principales}
+  En la ventana negra (terminal), escriba o pegue el siguiente comando y presione \textbf{Enter}:
+  \begin{comando}
+    pip install xlsxwriter textwrap3
+  \end{comando}
+  Verá texto desplazándose en pantalla. Espere hasta que aparezca de nuevo el símbolo \texttt{>} parpadeando. Esto puede tomar entre 1 y 3 minutos.
+\end{paso}
+
+\begin{paso}{6 — Instalar la librería de visualización}
+  Escriba o pegue el siguiente comando y presione \textbf{Enter}:
+  \begin{comando}
+    pip install streamlit-aggrid
+  \end{comando}
+  Espere a que termine la instalación.
+\end{paso}
+
+\begin{info}[¿Qué son estas librerías?]
+  \begin{itemize}[leftmargin=0.5cm]
+    \item \textbf{xlsxwriter}: Le permite al programa crear y escribir archivos de Excel (.xlsx).
+    \item \textbf{textwrap3}: Ayuda a ajustar y organizar el texto dentro de los reportes.
+    \item \textbf{streamlit-aggrid}: Permite mostrar tablas interactivas en la pantalla del programa.
+  \end{itemize}
+\end{info}
+
+\begin{solucion}[Si aparece el error ``pip no se reconoce como comando'']
+  Esto significa que Python no se instaló correctamente con la opción PATH. Soluciones:
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{rojopeligro}{\arabic*.}]
+    \item Desinstale Python desde el Panel de Control de Windows.
+    \item Vuelva al \textbf{Paso 2} y asegúrese de marcar la casilla \textbf{``Add Python to PATH''}.
+    \item Repita la instalación.
+  \end{enumerate}
+\end{solucion}
+
+% ════════════════════════════════════════════════════════
+\section{Ejecutar el programa}
+% ════════════════════════════════════════════════════════
+
+\begin{paso}{7 — Iniciar el sistema}
+  Con la terminal abierta \textbf{dentro de la carpeta del proyecto}, escriba o pegue el siguiente comando y presione \textbf{Enter}:
+  \begin{comando}
+    python -m streamlit run Cargue.py
+  \end{comando}
+  \vspace{0.3em}
+  Verá un mensaje similar a este en la terminal:
+  \begin{comando}
+    You can now view your Streamlit app in your browser.\\
+    \\
+    \quad Local URL:  http://localhost:8501\\
+    \quad Network URL: http://192.168.x.x:8501
+  \end{comando}
+  \vspace{0.3em}
+  En pocos segundos, \textbf{su navegador se abrirá automáticamente} con la interfaz del programa lista para usar.
+\end{paso}
+
+\begin{info}[¿Qué hace ese comando?]
+  Le está diciendo al computador: ``Usa Python para ejecutar el programa principal llamado Cargue.py''. La terminal quedará activa mientras el programa esté corriendo — esto es normal. \textbf{No cierre la ventana negra} mientras usa el sistema.
+\end{info}
+
+\begin{aviso}[Para detener el programa]
+  Cuando termine de usarlo, vaya a la terminal (ventana negra) y presione las teclas \textbf{Ctrl + C} al mismo tiempo. El programa se detendrá.
+\end{aviso}
+
+% ════════════════════════════════════════════════════════
+\section{Cómo usar el programa paso a paso}
+% ════════════════════════════════════════════════════════
+
+Una vez que el programa esté corriendo en el navegador, verá una interfaz con varios pasos. A continuación se describe cada uno con capturas de pantalla reales de la plataforma.
+
+% ──────────────────────────────────────────────────────
+\subsection{Paso A — Seleccionar el tipo de procesamiento}
+% ──────────────────────────────────────────────────────
+
+Al abrir la aplicación, lo primero que aparece es el título \textbf{``Exportador Automático de Datos a Excel''} y una pregunta sobre cómo están organizados sus datos. Existen tres opciones:
+
+\begin{center}
+\begin{tabular}{>{\bfseries\color{uninorteazul}}m{3cm} m{10cm}}
+  \toprule
+  Opción & Cuándo usarla \\
+  \midrule
+  Procesar & Sus datos tienen una fila por respuesta, con las calificaciones escritas como texto (por ejemplo, ``Satisfecho'', ``Insatisfecho''). \\
+  \addlinespace
+  Pivotear & Sus datos tienen una fila por caso y las preguntas están en columnas separadas de Caso, Pregunta y Respuesta. \\
+  \addlinespace
+  Qualtrics & Sus datos provienen directamente de la plataforma Qualtrics (exportación directa). \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.8em}
+
+\capturaConTitulo{Pantalla de inicio — Selección de método y carga del archivo}{Programa 5.png}
+
+% ──────────────────────────────────────────────────────
+\subsection{Paso B — Subir el archivo de datos}
+% ──────────────────────────────────────────────────────
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item Haga clic en el botón \textbf{``Browse files''} o \textbf{``Examinar archivos''}.
+  \item Busque y seleccione su archivo de Excel (\texttt{.xlsx}) con los datos de la encuesta.
+  \item El programa procesará el archivo y mostrará una vista previa de los datos en pantalla.
+\end{enumerate}
+
+\vspace{0.5em}
+
+\capturaConTitulo{Archivo cargado exitosamente — Vista previa de los datos}{Programa 4.png}
+
+\vspace{0.5em}
+
+Una vez cargado correctamente, verá el mensaje \textbf{``Archivo cargado exitosamente''} en verde y una tabla con los primeros datos de su encuesta.
+
+\begin{aviso}[Formato del archivo de Excel]
+  El archivo debe cumplir con estas condiciones mínimas:
+  \begin{itemize}[leftmargin=0.5cm]
+    \item Estar en formato \textbf{.xlsx} (no .xls, no .csv).
+    \item La primera fila debe contener los \textbf{nombres de las columnas} (encabezados).
+    \item Las calificaciones de satisfacción deben usar la escala \textbf{1 al 5}.
+  \end{itemize}
+\end{aviso}
+
+% ──────────────────────────────────────────────────────
+\subsection{Paso C — Seleccionar la oficina y configurar parámetros}
+% ──────────────────────────────────────────────────────
+
+Justo debajo de los datos cargados aparecerá la sección \textbf{``Seleccionar oficina y parámetros''}:
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item En el menú \textbf{``Selecciona la oficina''}, elija la oficina correspondiente a la encuesta.
+  \item Aparecerá un segundo menú con los \textbf{procesos disponibles} para esa oficina. Seleccione el proceso.
+  \item Complete los campos del formulario:
+\end{enumerate}
+
+\vspace{0.5em}
+
+\begin{center}
+\begin{tabular}{>{\bfseries}m{5cm} m{8.5cm}}
+  \toprule
+  Campo & Qué ingresar \\
+  \midrule
+  Nombre del archivo de salida & El nombre que quiere darle al Excel generado. Sin extensión \texttt{.xlsx}. \\
+  \addlinespace
+  Número de población & La cantidad total de personas que podían responder (no los que respondieron, sino el universo completo). \\
+  \addlinespace
+  Período de la encuesta & El período correspondiente. Ejemplo: \texttt{2025-1} o \texttt{Primer semestre 2025}. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.8em}
+
+\capturaConTitulo{Selección de oficina y configuración de parámetros del reporte}{Porgrama 3.png}
+
+\vspace{0.5em}
+
+\begin{info}[Oficina no encontrada en la lista]
+  Si su oficina no aparece en el menú, seleccione \textbf{``Oficina Genérica / Personalizada''} e ingrese manualmente el nombre de su oficina en el campo que aparecerá.
+\end{info}
+
+% ──────────────────────────────────────────────────────
+\subsection{Paso D — Seleccionar las columnas}
+% ──────────────────────────────────────────────────────
+
+Esta sección es la más importante. El programa detecta automáticamente las columnas de preguntas, pero usted debe confirmar y complementar la selección:
+
+\vspace{0.5em}
+
+\capturaConTitulo{Selección de columnas — Preguntas, satisfacción general y filtros}{Programa 2.png}
+
+\vspace{0.8em}
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item \textbf{Columnas de preguntas:} El programa detecta automáticamente las columnas con calificaciones del 1 al 5 y las selecciona. Puede ajustar la selección si es necesario.
+  \item \textbf{Columnas de observaciones:} (Opcional) Seleccione las columnas que contienen comentarios o texto libre de los encuestados.
+  \item \textbf{Satisfacción general:} Seleccione la columna que contiene la calificación global de satisfacción. En el ejemplo de la imagen se seleccionó \textit{``El nivel de satisfacción general en relación al servicio obtenido es:''}.
+  \item \textbf{Columnas para filtros dinámicos:} (Opcional) Seleccione columnas como \textit{Sede}, \textit{Departamento}, \textit{Tipo de caso}, etc. El programa creará filtros interactivos en el Excel para segmentar los datos por estas categorías.
+\end{enumerate}
+
+% ──────────────────────────────────────────────────────
+\subsection{Paso E — Generar y descargar el reporte}
+% ──────────────────────────────────────────────────────
+
+\vspace{0.5em}
+
+\capturaConTitulo{Filtros dinámicos, gráficas y botones de ejecución}{Programa 1.png}
+
+\vspace{0.8em}
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item (Opcional) En \textbf{``Seleccionar gráficas''} puede elegir qué métricas desea visualizar en el reporte.
+  \item Haga clic en el botón \textbf{``Ejecutar función excel\_exportar''}.
+  \item Espere entre 10 y 60 segundos dependiendo del tamaño de los datos.
+  \item Cuando termine, aparecerá el botón \textbf{``Descargar archivo generado''}. Haga clic en él.
+  \item El archivo \texttt{.xlsx} se descargará a su carpeta de Descargas.
+\end{enumerate}
+
+\begin{info}[Sobre los filtros interactivos (segmentadores)]
+  Si seleccionó columnas para filtros dinámicos, al abrir el Excel descargado verá unos paneles llamados \textbf{segmentadores}. Haciendo clic en las opciones de cada panel, las tablas y métricas del reporte se actualizan automáticamente mostrando solo los datos del grupo seleccionado.
+\end{info}
+
+% ════════════════════════════════════════════════════════
+\section{Solución a problemas frecuentes}
+% ════════════════════════════════════════════════════════
+
+\begin{solucion}[El navegador no se abre automáticamente]
+  Abra su navegador manualmente y escriba en la barra de dirección:
+  \begin{comando}
+    http://localhost:8501
+  \end{comando}
+  Presione Enter y el programa debería aparecer.
+\end{solucion}
+
+\begin{solucion}[Aparece ``ModuleNotFoundError'' en la terminal]
+  Significa que falta instalar una librería. El mensaje indicará el nombre de la librería faltante. Por ejemplo, si dice \texttt{No module named 'xlsxwriter'}, ejecute en la terminal:
+  \begin{comando}
+    pip install xlsxwriter
+  \end{comando}
+  Reemplace \texttt{xlsxwriter} por el nombre del módulo que indique el error.
+\end{solucion}
+
+\begin{solucion}[El programa se cae o se congela al generar el reporte]
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{rojopeligro}{\arabic*.}]
+    \item Cierre el programa con \textbf{Ctrl + C} en la terminal.
+    \item Asegúrese de que Excel no tenga abierto el mismo archivo que está intentando generar.
+    \item Vuelva a ejecutar el programa con el comando del Paso 7.
+    \item Intente con un archivo de datos más pequeño para descartar problemas de memoria.
+  \end{enumerate}
+\end{solucion}
+
+\begin{solucion}[Los segmentadores (filtros) no aparecen en el Excel]
+  Los segmentadores requieren que Microsoft Excel esté instalado en el computador. Si usa LibreOffice u otro programa para abrir archivos Excel, los segmentadores no funcionarán. Verifique que:
+  \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{rojopeligro}{\arabic*.}]
+    \item Tiene Microsoft Excel 2010 o superior instalado.
+    \item Está abriendo el archivo con Excel (no con otro programa).
+  \end{enumerate}
+\end{solucion}
+
+\begin{solucion}[Error ``Address already in use'' al iniciar]
+  El programa ya está corriendo en otra ventana. Puede acceder directamente desde el navegador en \texttt{http://localhost:8501}, o cierre todas las terminales y vuelva a ejecutar el Paso 7.
+\end{solucion}
+
+% ════════════════════════════════════════════════════════
+\section{Resumen rápido de comandos}
+% ════════════════════════════════════════════════════════
+
+\begin{center}
+\begin{tabular}{>{\bfseries}m{5.5cm} m{8cm}}
+  \toprule
+  \textcolor{uninorteazul}{Acción} & \textcolor{uninorteazul}{Comando en la terminal} \\
+  \midrule
+  Instalar librerías faltantes & \texttt{pip install xlsxwriter textwrap3 streamlit-aggrid} \\
+  \addlinespace
+  Iniciar el programa & \texttt{python -m streamlit run Cargue.py} \\
+  \addlinespace
+  Ver versión de Python & \texttt{python --version} \\
+  \addlinespace
+  Detener el programa & Presionar \textbf{Ctrl + C} en la terminal \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+% ════════════════════════════════════════════════════════
+\section{Glosario de términos}
+% ════════════════════════════════════════════════════════
+
+\begin{description}[leftmargin=2.5cm, style=nextline]
+  \item[\textcolor{uninorteazul}{Terminal / Consola}]
+    Ventana de fondo negro donde se escriben comandos de texto para controlar el computador. También llamada ``símbolo del sistema'' o ``command prompt''.
+
+  \item[\textcolor{uninorteazul}{Python}]
+    Lenguaje de programación gratuito y de código abierto. Es el motor que ejecuta este programa.
+
+  \item[\textcolor{uninorteazul}{pip}]
+    Herramienta que se instala junto con Python. Permite instalar librerías adicionales escribiendo un comando simple.
+
+  \item[\textcolor{uninorteazul}{Librería / Módulo}]
+    Conjunto de funciones adicionales que se agregan a Python. Son como ``piezas extra'' que amplían las capacidades del lenguaje.
+
+  \item[\textcolor{uninorteazul}{Streamlit}]
+    La librería que transforma el código Python en una página web interactiva que se ve en el navegador.
+
+  \item[\textcolor{uninorteazul}{localhost}]
+    Dirección especial que significa ``este mismo computador''. Cuando el programa corre en \texttt{localhost:8501}, la página solo es visible en su propio equipo.
+
+  \item[\textcolor{uninorteazul}{NSP}]
+    Nivel de Satisfacción Ponderado. Métrica calculada automáticamente que expresa el nivel de satisfacción en una escala de 0 a 100.
+
+  \item[\textcolor{uninorteazul}{ISC}]
+    Índice de Satisfacción del Cliente. Indicador global que combina la importancia de cada atributo con su nivel de satisfacción.
+
+  \item[\textcolor{uninorteazul}{Segmentador / Slicer}]
+    Panel interactivo en Excel que permite filtrar los datos haciendo clic en categorías. Al seleccionar una opción, todas las tablas y métricas del reporte se actualizan automáticamente.
+\end{description}
+
+% ════════════════════════════════════════════════════════
+%  PIE DE PÁGINA FINAL
+% ════════════════════════════════════════════════════════
+\vfill
+\begin{center}
+  \color{grismedio}
+  \rule{0.5\linewidth}{0.4pt}\\[6pt]
+  \small Universidad del Norte — Dirección de Tecnología Informática y Comunicaciones\\
+  Para soporte técnico, contacte al área de Sistemas de Información.
+\end{center}
+
+\end{document}
