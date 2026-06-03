@@ -562,6 +562,7 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                 spec.loader.exec_module(modulo)
 
                 if hasattr(modulo, "excel_exportar"):
+                    # Con filtros + VBA el script guarda como .xlsm; sin VBA como .xlsx
                     ruta_salida = f"{nombre_archivo}.xlsx"
                     # Si es Operaciones Tic, poner 'N_Caso' (o la columna que corresponda) de primera
                     if oficina_seleccionada == "Operaciones Tic":
@@ -583,8 +584,12 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                     with st.spinner("Generando archivo Excel..." + (" y slicers..." if filtros_dinamicos else "")):
                         with contextlib.redirect_stdout(log_buffer):
                             modulo.excel_exportar(df, nombre_archivo, numerodepoblacion, preguntas, comentarios, general, oficina, proceso, periodo_unico, tipos_grafica, filtros_dinamicos)
+                    # Si se generó .xlsm (VBA + dropdowns), apuntar al nuevo archivo
+                    ruta_xlsm = f"{nombre_archivo}.xlsm"
+                    if filtros_dinamicos and os.path.exists(ruta_xlsm):
+                        ruta_salida = ruta_xlsm
                     st.session_state["ruta_archivo_generado"] = ruta_salida
-                    st.success(f"✅ Función ejecutada y archivo generado como '{ruta_salida}'")
+                    st.success(f"✅ Función ejecutada y archivo generado como '{os.path.basename(ruta_salida)}'")
                     # Mostrar log de slicers si hay filtros (para detectar errores)
                     if filtros_dinamicos:
                         log_texto = log_buffer.getvalue()
@@ -607,7 +612,9 @@ if "ruta_archivo_generado" in st.session_state:
                 label="📥 Descargar archivo generado",
                 data=f,
                 file_name=os.path.basename(ruta_archivo_generado),
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                mime=("application/vnd.ms-excel.sheet.macroEnabled.12"
+                  if ruta_archivo_generado.endswith(".xlsm")
+                  else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
             )
 
 # --- Pie de página ---

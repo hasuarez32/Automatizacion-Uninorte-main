@@ -1258,66 +1258,182 @@
                 excel.Quit()
                 return
             
-            # ENFOQUE CORRECTO: Conectar slicers directamente a la tabla TB
-            # Los slicers de tabla (no de tabla dinámica) filtran la tabla y todo lo conectado a ella
-            print("\n📊 Preparando slicers para tabla TB...")
+            # --- Menús desplegables (Form Control DropDowns + VBA)
+            # Si VBA no está disponible por configuración de seguridad,
+            # se usa slicer como fallback con posicionamiento mejorado.
+            print("\n📊 Preparando filtros desplegables...")
             sys.stdout.flush()
-            
-            # Crear slicers conectados directamente a la tabla TB
-            slicers_agregados = []
-            print(f"\n🎨 Creando {len(columnas_filtros_dinamicos)} slicer(s) conectados a tabla TB...")
+
+            vba_code = (
+                "Sub FiltrarPorDropdown()\n"
+                "    On Error GoTo salida\n"
+                "    Dim ddName As String\n"
+                "    ddName = Application.Caller\n"
+                "    Dim wsTG As Worksheet, wsDig As Worksheet\n"
+                "    Set wsTG = ThisWorkbook.Worksheets(\"T+G\")\n"
+                "    On Error Resume Next\n"
+                "    Set wsDig = ThisWorkbook.Worksheets(\"Digitaci\u00f3n\")\n"
+                "    If wsDig Is Nothing Then Set wsDig = ThisWorkbook.Worksheets(\"Digitacion\")\n"
+                "    On Error GoTo salida\n"
+                "    If wsDig Is Nothing Then GoTo salida\n"
+                "    Dim colName As String\n"
+                "    colName = \"\"\n"
+                "    Dim i As Long\n"
+                "    For i = 10000 To 10100\n"
+                "        If CStr(wsTG.Cells(i, 1).Value) = ddName Then\n"
+                "            colName = CStr(wsTG.Cells(i, 2).Value)\n"
+                "            Exit For\n"
+                "        End If\n"
+                "    Next i\n"
+                "    If Len(colName) = 0 Then GoTo salida\n"
+                "    Dim dd As DropDown\n"
+                "    Set dd = wsTG.DropDowns(ddName)\n"
+                "    Dim valSel As String\n"
+                "    valSel = CStr(dd.List(dd.Value))\n"
+                "    Dim tbl As ListObject\n"
+                "    Set tbl = wsDig.ListObjects(\"TB\")\n"
+                "    Dim fIdx As Long\n"
+                "    fIdx = 0\n"
+                "    Dim lc As ListColumn\n"
+                "    For Each lc In tbl.ListColumns\n"
+                "        If lc.Name = colName Then\n"
+                "            fIdx = lc.Index\n"
+                "            Exit For\n"
+                "        End If\n"
+                "    Next lc\n"
+                "    If fIdx = 0 Then GoTo salida\n"
+                "    If valSel = \"(Todos)\" Then\n"
+                "        tbl.Range.AutoFilter Field:=fIdx\n"
+                "    Else\n"
+                "        tbl.Range.AutoFilter Field:=fIdx, Criteria1:=valSel\n"
+                "    End If\n"
+                "salida:\n"
+                "End Sub\n"
+            )
+
+            # Intentar agregar módulo VBA
+            vba_ok = False
+            try:
+                mod = wb.VBProject.VBComponents.Add(1)  # vbext_ct_StdModule
+                mod.Name = "ModFiltros"
+                mod.CodeModule.AddFromString(vba_code)
+                vba_ok = True
+                print("   ✅ Módulo VBA agregado")
+            except Exception as _e:
+                print(f"   ⚠️ VBA no disponible ({_e}), usando slicer como fallback")
             sys.stdout.flush()
-            
-            for idx, col_filtro in enumerate(columnas_filtros_dinamicos):
-                print(f"\n   [{idx+1}/{len(columnas_filtros_dinamicos)}] Procesando: {col_filtro}")
-                sys.stdout.flush()
-                if col_filtro in data.columns.tolist():
+
+            filtros_agregados = []
+
+            if vba_ok:
+                # Form Control DropDowns en el espacio en blanco a la izquierda de la FICHA TÉCNICA
+                # Área: columnas B-D (Excel 1-indexed: 2-4), filas 8+ (junto a FICHA TÉCNICA)
+                for idx, col_filtro in enumerate(columnas_filtros_dinamicos):
+                    if col_filtro not in data.columns.tolist():
+                        print(f"   ⚠️ Columna '{col_filtro}' no encontrada")
+                        continue
                     try:
-                        # Crear slicer conectado directamente a la tabla TB
-                        # Esto hace que el slicer filtre la tabla, y por ende los cálculos en T+G
-                        # Add2 es compatible con Excel 2013+ para slicers de tabla (ListObject)
+                        # Mapeo nombre_dd → columna_real en filas ocultas (10000+)
+                        dd_name = f"Filtro_{idx + 1}"
+                        ws_tg.Cells(10000 + idx, 1).Value = dd_name
+                        ws_tg.Cells(10000 + idx, 2).Value = col_filtro
+                        ws_tg.Rows(f"{10000 + idx}:{10000 + idx}").Hidden = True
+
+                        # Etiqueta en B(fila):D(fila), dropdown en fila siguiente
+                        fila_lbl = 8 + idx * 2
+                        fila_dd  = fila_lbl + 1
+
+                        rng_lbl = ws_tg.Range(ws_tg.Cells(fila_lbl, 2), ws_tg.Cells(fila_lbl, 4))
+                        try:
+                            rng_lbl.Merge()
+                        except Exception:
+                            pass
+                        rng_lbl.Value = col_filtro
+                        rng_lbl.Font.Bold = True
+                        rng_lbl.Font.Size = 8
+                        rng_lbl.HorizontalAlignment = -4131  # xlLeft
+
+                        # Coordenadas pixel basadas en celdas reales
+                        c_ini = ws_tg.Cells(fila_dd, 2)
+                        c_fin = ws_tg.Cells(fila_dd, 4)
+                        dd_left   = c_ini.Left + 2
+                        dd_top    = c_ini.Top  + 2
+                        dd_width  = c_fin.Left + c_fin.Width - c_ini.Left - 4
+                        dd_height = 16
+
+                        dd = ws_tg.DropDowns.Add(dd_left, dd_top, dd_width, dd_height)
+                        dd.Name = dd_name
+                        dd.AddItem("(Todos)")
+                        for v in sorted(data[col_filtro].fillna("Sin especificar").astype(str).unique()):
+                            dd.AddItem(str(v))
+                        dd.Value = 1
+                        dd.OnAction = "FiltrarPorDropdown"
+
+                        filtros_agregados.append(col_filtro)
+                        print(f"   ✅ Dropdown '{dd_name}' → {col_filtro}")
+                    except Exception as _e2:
+                        print(f"   ❌ Error dropdown '{col_filtro}': {_e2}")
+                        import traceback; traceback.print_exc()
+                    sys.stdout.flush()
+
+                # Guardar como .xlsm (obligatorio para preservar VBA)
+                import re as _re
+                archivo_xlsm = _re.sub(r'\.xlsx$', '.xlsm', archivo_path, flags=_re.IGNORECASE)
+                print(f"\n💾 Guardando como .xlsm: {os.path.basename(archivo_xlsm)}")
+                sys.stdout.flush()
+                wb.SaveAs(archivo_xlsm, FileFormat=52)  # 52 = xlOpenXMLWorkbookMacroEnabled
+                wb.Close(SaveChanges=False)
+                excel.Quit()
+                pythoncom.CoUninitialize()
+                # Eliminar el .xlsx original (fue reemplazado por .xlsm)
+                if os.path.exists(archivo_xlsm) and os.path.exists(archivo_path) and archivo_xlsm != archivo_path:
+                    try:
+                        os.remove(archivo_path)
+                    except Exception:
+                        pass
+
+            else:
+                # --- Fallback: slicers con posicionamiento mejorado ---
+                for idx, col_filtro in enumerate(columnas_filtros_dinamicos):
+                    if col_filtro not in data.columns.tolist():
+                        continue
+                    try:
                         try:
                             slicer_cache = wb.SlicerCaches.Add2(tabla_tb, col_filtro)
                         except Exception:
                             slicer_cache = wb.SlicerCaches.Add(tabla_tb, col_filtro)
-                        
-                        slicer = slicer_cache.Slicers.Add(
-                            SlicerDestination=ws_tg
-                        )
-                        
-                        # Posicionar el slicer
-                        slicer.Top = 50 + (idx * 220)
-                        slicer.Left = 50
-                        slicer.Height = 200
-                        slicer.Width = 250
-                        
-                        slicers_agregados.append(col_filtro)
-                        print(f"   ✅ Slicer creado y conectado a tabla TB")
-                        sys.stdout.flush()
-                    except Exception as e:
-                        print(f"   ❌ Error: {e}")
-                        sys.stdout.flush()
-                        import traceback
-                        traceback.print_exc()
-                else:
-                    print(f"   ⚠️ Columna '{col_filtro}' no encontrada en el DataFrame")
+                        slicer = slicer_cache.Slicers.Add(SlicerDestination=ws_tg)
+
+                        # Posicionamiento mejorado: área B-D a la izquierda de FICHA TÉCNICA
+                        celda_ref = ws_tg.Cells(8 + idx * 8, 2)
+                        n_items   = len(data[col_filtro].dropna().unique())
+                        slicer.Left   = celda_ref.Left + 5
+                        slicer.Top    = celda_ref.Top  + 5
+                        slicer.Width  = (ws_tg.Cells(8, 4).Left + ws_tg.Cells(8, 4).Width
+                                         - celda_ref.Left - 10)
+                        slicer.Height = min(180, 35 + n_items * 22)
+                        try:
+                            slicer.RowHeight = 20
+                        except Exception:
+                            pass
+
+                        filtros_agregados.append(col_filtro)
+                        print(f"   ✅ Slicer (fallback) para: {col_filtro}")
+                    except Exception as _e3:
+                        print(f"   ❌ Error slicer '{col_filtro}': {_e3}")
+                        import traceback; traceback.print_exc()
                     sys.stdout.flush()
-            
-            # Guardar y cerrar
-            print(f"\n💾 Guardando archivo...")
-            sys.stdout.flush()
-            wb.Save()
-            wb.Close(SaveChanges=True)
-            excel.Quit()
-            
-            # Limpiar COM
-            pythoncom.CoUninitialize()
+
+                wb.Save()
+                wb.Close(SaveChanges=True)
+                excel.Quit()
+                pythoncom.CoUninitialize()
+
             print("✅ COM finalizado correctamente")
             sys.stdout.flush()
-            
             print(f"\n{'='*60}")
             print(f"✅ PROCESO COMPLETADO")
-            print(f"   Slicers agregados: {', '.join(slicers_agregados) if slicers_agregados else 'ninguno'}")
+            print(f"   Filtros agregados: {', '.join(filtros_agregados) if filtros_agregados else 'ninguno'}")
             print(f"{'='*60}\n")
             sys.stdout.flush()
             
