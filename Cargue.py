@@ -128,12 +128,19 @@ def procesar_qualtrics(df):
         '2- Estás insatisfecho': 2,
         '1- Estás totalmente insatisfecho': 1,
         '1-Estás totalmente insatisfecho': 1,
-        # Formatos con "Muy"
+        # Formatos con "Muy" y standalone (sin número prefijo)
         '5 - Muy satisfecho': 5,
+        'Muy satisfecho': 5,
         '4 - Satisfecho': 4,
+        'Satisfecho': 4,
         '3 - Neutral': 3,
+        '3 - Ni satisfecho - ni insatisfecho': 3,
+        'Ni satisfecho - ni insatisfecho': 3,
+        'Neutral': 3,
         '2 - Insatisfecho': 2,
+        'Insatisfecho': 2,
         '1 - Muy insatisfecho': 1,
+        'Muy insatisfecho': 1,
         # Formatos de expectativas (todas las variantes)
         '5 - Supera notablemente las expectativas': 5,
         '5- Supera notablemente las expectativas': 5,
@@ -489,12 +496,14 @@ if archivo_excel is not None:
                 nombre_columna_general = col
     columnas_pregunta_detectadas=[x for x in columnas_pregunta_detectadas if x not in columnas_todo_no_aplica]
 
-    # Nota sobre truncado de nombres (solo Qualtrics)
+    # Nota sobre truncado de nombres (solo Qualtrics) — más visible
     if metodo == "Qualtrics":
-        st.info(
-            "ℹ️ **Nombres de columna acortados:** Los encabezados largos de Qualtrics se recortan "
-            "hasta el último \" - \". Por ejemplo, *\"Por favor califique... - Los recursos empleados...\"* "
-            "queda como *\"Los recursos empleados...\"*. Ten esto en cuenta al seleccionar columnas abajo."
+        st.warning(
+            "⚠️ **Atención — los nombres de columna cambian al procesar Qualtrics**\n\n"
+            "Los encabezados largos se **recortan desde el último \" - \"** hacia adelante.\n\n"
+            "**Ejemplo:** *\"Por favor califique cada atributo del servicio — Los recursos empleados durante la prestación\"*"
+            " → aparece como **\"Los recursos empleados durante la prestación\"**\n\n"
+            "Usa este nombre acortado al seleccionar preguntas, columna general y filtros abajo."
         )
 
     # --- Sección: Eliminar columnas no relevantes (opcional) ---
@@ -554,6 +563,59 @@ if archivo_excel is not None:
     columnas_filtros_dinamicos = st.multiselect("📊 Selecciona columnas para crear filtros desplegables en T+G:", options=df.columns.tolist())
     st.session_state["columnas_filtros_dinamicos"] = columnas_filtros_dinamicos
 
+    # --- Sección: Segmentación por población ------------------------------------------------
+    st.markdown('<div class="section-title">🏫 Segmentación por población (opcional)</div>', unsafe_allow_html=True)
+    st.caption(
+        "Úsalo cuando el proceso abarca poblaciones con tamaños distintos "
+        "(ej: pregrado, posgrado, docentes). Selecciona la columna que las identifica "
+        "y escribe el N de cada grupo. La ficha técnica y la muestra mínima se actualizan "
+        "dinámicamente según el filtro activo en el Excel."
+    )
+    _opciones_seg = ["(No segmentar)"] + df.columns.tolist()
+    col_segmentacion_ui = st.selectbox(
+        "Columna que identifica la población:",
+        options=_opciones_seg,
+        index=0,
+        key="col_seg_select"
+    )
+
+    poblaciones_por_segmento_ui = {}
+    if col_segmentacion_ui and col_segmentacion_ui != "(No segmentar)" and col_segmentacion_ui in df.columns:
+        # Agregar automáticamente al filtro dinámico si aún no está
+        if col_segmentacion_ui not in columnas_filtros_dinamicos:
+            columnas_filtros_dinamicos = [col_segmentacion_ui] + [c for c in columnas_filtros_dinamicos if c != col_segmentacion_ui]
+            st.session_state["columnas_filtros_dinamicos"] = columnas_filtros_dinamicos
+            st.caption(f"✅ Se agregó **{col_segmentacion_ui}** como filtro dinámico automáticamente.")
+
+        valores_seg = sorted(df[col_segmentacion_ui].fillna("Sin especificar").astype(str).unique().tolist())
+        st.write(f"Ingresa el **N (población total)** de cada segmento:")
+        _ncols = min(len(valores_seg), 3)
+        _cols_inputs = st.columns(_ncols)
+        for _i, _val in enumerate(valores_seg):
+            with _cols_inputs[_i % _ncols]:
+                _n_val = st.number_input(
+                    f"N — {_val}",
+                    min_value=1, step=1,
+                    value=int(numerodepoblacion),
+                    key=f"n_seg_{_val}"
+                )
+                poblaciones_por_segmento_ui[str(_val)] = int(_n_val)
+
+        _total_segmentos = sum(poblaciones_por_segmento_ui.values())
+        st.info(
+            f"📊 **Población total automática:** {_total_segmentos:,} "
+            f"(suma de los segmentos: {' + '.join(f'{v:,}' for v in poblaciones_por_segmento_ui.values())} = {_total_segmentos:,}). "
+            "El campo **'Número de población'** de arriba se ignora cuando hay segmentación activa."
+        )
+
+        st.session_state["col_segmentacion"] = col_segmentacion_ui
+        st.session_state["poblaciones_por_segmento"] = poblaciones_por_segmento_ui
+        st.session_state["n_poblacion_efectivo"] = _total_segmentos
+    else:
+        st.session_state["col_segmentacion"] = ""
+        st.session_state["poblaciones_por_segmento"] = {}
+        st.session_state["n_poblacion_efectivo"] = int(numerodepoblacion)
+
     #---Sección de selcionar graficas---------------------------
     st.markdown('<div class="section-title">📊 Seleccionar gráficas (opcional)</div>', unsafe_allow_html=True)
     seleccionadas = st.multiselect("Selecciona las métricas que deseas visualizar:", options=df.columns.tolist())
@@ -610,13 +672,34 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                     
                     # Obtener filtros dinámicos (disponibles para TODAS las oficinas)
                     filtros_dinamicos = st.session_state.get("columnas_filtros_dinamicos", [])
-                    
+
+                    # Sanitizar nombres de columna: eliminar caracteres que rompen
+                    # referencias estructurales Excel TB[col] ([, ], #, &)
+                    def _sanitize_col(c):
+                        for ch in ['[', ']', '#', '&']:
+                            c = str(c).replace(ch, '')
+                        return c.strip() or 'Columna'
+                    _rename_map = {c: _sanitize_col(c) for c in df.columns if c != _sanitize_col(c)}
+                    if _rename_map:
+                        df = df.rename(columns=_rename_map)
+                        preguntas   = [_rename_map.get(p, p) for p in preguntas]
+                        comentarios = [_rename_map.get(c, c) for c in comentarios]
+                        general     = _rename_map.get(general, general)
+                        filtros_dinamicos   = [_rename_map.get(f, f) for f in filtros_dinamicos]
+
                     # Llamar excel_exportar para TODAS las oficinas con soporte de filtros
                     import io, contextlib
                     log_buffer = io.StringIO()
                     with st.spinner("Generando archivo Excel..." + (" y slicers..." if filtros_dinamicos else "")):
+                        _n_efectivo = st.session_state.get("n_poblacion_efectivo", int(numerodepoblacion))
                         with contextlib.redirect_stdout(log_buffer):
-                            modulo.excel_exportar(df, nombre_archivo, numerodepoblacion, preguntas, comentarios, general, oficina, proceso, periodo_unico, tipos_grafica, filtros_dinamicos)
+                            modulo.excel_exportar(
+                                df, nombre_archivo, _n_efectivo, preguntas, comentarios,
+                                general, oficina, proceso, periodo_unico, tipos_grafica,
+                                filtros_dinamicos,
+                                col_segmentacion=st.session_state.get("col_segmentacion", ""),
+                                poblaciones_por_segmento=st.session_state.get("poblaciones_por_segmento", {})
+                            )
                     # Si se generó .xlsm (VBA + dropdowns), apuntar al nuevo archivo
                     ruta_xlsm = f"{nombre_archivo}.xlsm"
                     if filtros_dinamicos and os.path.exists(ruta_xlsm):

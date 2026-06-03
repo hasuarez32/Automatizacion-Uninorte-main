@@ -1,4 +1,4 @@
-﻿def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[]):
+﻿def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[], col_segmentacion="", poblaciones_por_segmento=None):
     #Hoja de Dijitación
     import xlsxwriter
     import pandas as pd
@@ -15,6 +15,8 @@
     workbook = xlsxwriter.Workbook(f'{nombre_archivo}.xlsx')
 
     # Variable para determinar si hay filtros dinámicos
+    if poblaciones_por_segmento is None:
+        poblaciones_por_segmento = {}
     tiene_filtros = len(columnas_filtros_dinamicos) > 0
     
     # Función helper para generar fórmulas que consideran filas visibles
@@ -251,6 +253,11 @@
             'bg_color': '#16365C', 'font_color': 'white',
             'left': 1, 'right': 1, 'top': 1, 'bottom': 0, 'border_color': 'black'
         })
+        _fmt_lbl_pob = workbook.add_format({
+            'align': 'left', 'valign': 'vcenter', 'bold': True, 'font_size': 8,
+            'bg_color': '#375623', 'font_color': 'white',
+            'left': 1, 'right': 1, 'top': 1, 'bottom': 0, 'border_color': 'black'
+        })
         _fmt_val_f = workbook.add_format({
             'align': 'left', 'valign': 'vcenter', 'font_size': 9,
             'bg_color': '#FFFFFF', 'font_color': '#333333',
@@ -269,7 +276,10 @@
             TG.set_column(_hcol, _hcol, None, None, {'hidden': True})
             _fl_r = 5 + _fi * 2   # fila etiqueta (0-indexed)
             _fv_r = _fl_r + 1     # fila celda dropdown
-            TG.merge_range(_fl_r, 1, _fl_r, 3, _fc, _fmt_lbl_f)
+            _es_pob = bool(col_segmentacion and _fc == col_segmentacion)
+            _lbl_texto = 'Población' if _es_pob else _fc
+            _fmt_lbl_uso = _fmt_lbl_pob if _es_pob else _fmt_lbl_f
+            TG.merge_range(_fl_r, 1, _fl_r, 3, _lbl_texto, _fmt_lbl_uso)
             TG.merge_range(_fv_r, 1, _fv_r, 3, '(Todos)', _fmt_val_f)
             _v_s = xl_rowcol_to_cell(_base_r, _hcol, row_abs=True, col_abs=True)
             _v_e = xl_rowcol_to_cell(_base_r + len(_vals_dd) - 1, _hcol,
@@ -278,6 +288,26 @@
                 'validate': 'list',
                 'source': f'={_v_s}:{_v_e}'
             })
+        # ── Tabla lookup N por segmento de población ─────────────────────
+        _seg_dropdown_cell = None
+        _seg_lookup_range  = None
+        if col_segmentacion and poblaciones_por_segmento and col_segmentacion in columnas_filtros_dinamicos:
+            _idx_seg = columnas_filtros_dinamicos.index(col_segmentacion)
+            _seg_dropdown_cell = xl_rowcol_to_cell(6 + _idx_seg * 2, 1, row_abs=True, col_abs=True)
+            _seg_r0, _seg_ck, _seg_cv = 1200, 32, 33
+            TG.write(_seg_r0, _seg_ck, '(Todos)')
+            TG.write(_seg_r0, _seg_cv, n_poblacion)
+            for _ii, (_sv, _sn) in enumerate(sorted(poblaciones_por_segmento.items())):
+                TG.write(_seg_r0 + 1 + _ii, _seg_ck, str(_sv))
+                TG.write(_seg_r0 + 1 + _ii, _seg_cv, int(_sn))
+            TG.set_column(_seg_ck, _seg_cv, None, None, {'hidden': True})
+            _seg_vs = xl_rowcol_to_cell(_seg_r0, _seg_ck, row_abs=True, col_abs=True)
+            _seg_ve = xl_rowcol_to_cell(_seg_r0 + len(poblaciones_por_segmento), _seg_cv,
+                                        row_abs=True, col_abs=True)
+            _seg_lookup_range = f'{_seg_vs}:{_seg_ve}'
+    else:
+        _seg_dropdown_cell = None
+        _seg_lookup_range  = None
     # ─────────────────────────────────────────────────────────────────────
     TG.merge_range(7,4, 7, 7,'FICHA TÉCNICA',workbook.add_format({'align': 'center',   'left': 2,'right': 2,'top': 2,'bottom': 1,'bg_color': '#D3D3D3','border_color': 'black', 'bold':True}))
 
@@ -352,17 +382,19 @@
         ancho_aproximado = len(texto_mas_largo)*0.6
         # Aplicar bordes a la fila siguiente en el mismo rango de columnas
     denominador = '$G$11' if tiene_filtros else str(n_estimado)
-    for col in range(17, 23):
-        if col==22:
-            TG.write_formula(6, col, f'={countif_visible(general,"No Aplica")}/{denominador}', formato_borde_personalizado)
-        else:
-            TG.write_formula(6, col,f'={countif_visible(general,respuestas[col-17])}/({denominador}-{countif_visible(general,"No Aplica")})', formato_borde_personalizado)
+    _qna = '"No Aplica"'
+    if general:
+        for col in range(17, 23):
+            if col==22:
+                TG.write_formula(6, col, f'={countif_visible(general,_qna)}/{denominador}', formato_borde_personalizado)
+            else:
+                TG.write_formula(6, col,f'={countif_visible(general,respuestas[col-17])}/({denominador}-{countif_visible(general,_qna)})', formato_borde_personalizado)
 
-    for col in range(17, 23):
-        if col==22:
-            TG.write_formula(7, col, f'={countif_visible(general,"No Aplica")}', formato_borde_personalizado1)
-        else:
-            TG.write_formula(7, col,f'={countif_visible(general,respuestas[col-17])}', formato_borde_personalizado1)
+        for col in range(17, 23):
+            if col==22:
+                TG.write_formula(7, col, f'={countif_visible(general,_qna)}', formato_borde_personalizado1)
+            else:
+                TG.write_formula(7, col,f'={countif_visible(general,respuestas[col-17])}', formato_borde_personalizado1)
 
     #Grafica geeneral
     # Crea un gráfico de tipo columna en el bloque de la izquierda
@@ -634,7 +666,7 @@
         Suma2 = [xl_rowcol_to_cell(ficha_ini, col) for col in range(colficha_ini+2,colficha_fin)]
         formula_v = f"(SUM({Suma1[0]}:{Suma1[-1]})*SUM({Suma2[0]}:{Suma2[-1]}))"
         formulas.append(formula_v)
-    formula_varianza = f"=AVERAGE({','.join(formulas)})"
+    formula_varianza = f"=AVERAGE({','.join(formulas)})" if formulas else 0
     for row in range(8, 14):
         if row==13:
             TG.merge_range(row, 4, row, 5, titulos_fichas[row-8], workbook.add_format({'align': 'center','left':2,'bottom':2,'bg_color': '#FFFFFF','border_color': 'black'}))
@@ -650,10 +682,20 @@
             TG.merge_range(row, 6, row, 7, '=SUMPRODUCT(TB[_VISIBLE])' if tiene_filtros else data.shape[0], workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
         elif row==9:
             TG.merge_range(row, 4, row, 5, titulos_fichas[row-8], workbook.add_format({'align': 'center','left':2,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black'}))
-            TG.merge_range(row, 6, row, 7, calcular_poblacion_estimada(n_poblacion), workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
+            if _seg_lookup_range:
+                _g_pob = xl_rowcol_to_cell(8, 6, row_abs=True, col_abs=True)
+                _muestra_val = f'=ROUNDUP(384.16/(1+383.16/{_g_pob}),0)'
+            else:
+                _muestra_val = calcular_poblacion_estimada(n_poblacion)
+            TG.merge_range(row, 6, row, 7, _muestra_val,
+                workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
         elif row==8:
             TG.merge_range(row, 4, row, 5, titulos_fichas[row-8], workbook.add_format({'align': 'center','left':2,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black'}))
-            TG.merge_range(row, 6, row, 7, n_poblacion, workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
+            if _seg_lookup_range and _seg_dropdown_cell:
+                _g8_f = f'=IFERROR(VLOOKUP({_seg_dropdown_cell},{_seg_lookup_range},2,FALSE),{n_poblacion})'
+                TG.merge_range(row, 6, row, 7, _g8_f, workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
+            else:
+                TG.merge_range(row, 6, row, 7, n_poblacion, workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black', 'num_format': '0'}))
         else:
             TG.merge_range(row, 4, row, 5, titulos_fichas[row-8], workbook.add_format({'align': 'center','left':2,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black'}))
             TG.merge_range(row, 6, row, 7, None, workbook.add_format({'align': 'center','right':2,'left':1,'bottom':1,'bg_color': '#FFFFFF','border_color': 'black'}))
@@ -956,7 +998,7 @@
                 'text_wrap': True,
             })
         worksheet.merge_range(start_sati_impor+2, 1, start_sati_impor+2, 5, Preguntas[ite], Formato_satis_import)
-        worksheet.write(start_sati_impor+2, 6, correl_visible(general, Preguntas[ite]), Formato_satis_import2)
+        worksheet.write(start_sati_impor+2, 6, correl_visible(general, Preguntas[ite]) if general else 0, Formato_satis_import2)
     
     inicio = xl_rowcol_to_cell(start_sati_impor+3, 6)  
     for ite in range(len(Preguntas)):
@@ -1130,7 +1172,7 @@
 
     #Valor ISC ponderado por NIP
     TG.merge_range(id_row_isc+len(Preguntas)+10, 9, id_row_isc+len(Preguntas)+10, 10, f'=IFERROR(SUMPRODUCT({inicio_peso}:{fin_peso},{Inicio_nsp1}:{fin_nsp1}),0)', workbook.add_format({'align': 'center', 'bg_color': '#C4D79B', 'left':2,'right':2,'top':2,'bottom':1,'border_color':'black','num_format':'0.00'}))
-    TG.merge_range(id_row_isc+len(Preguntas)+11, 9, id_row_isc+len(Preguntas)+11, 10, f'=IFERROR(({xl_rowcol_to_cell(id_row_isc+len(Preguntas)+10,9)}:{xl_rowcol_to_cell(id_row_isc+len(Preguntas)+10,10)})/20,0)', workbook.add_format({'align': 'center', 'bg_color': '#C4D79B', 'left':2,'right':2,'top':1,'bottom':2,'border_color':'black','num_format':'0.00'}))
+    TG.merge_range(id_row_isc+len(Preguntas)+11, 9, id_row_isc+len(Preguntas)+11, 10, f'=IFERROR({xl_rowcol_to_cell(id_row_isc+len(Preguntas)+10,9)}/20,0)', workbook.add_format({'align': 'center', 'bg_color': '#C4D79B', 'left':2,'right':2,'top':1,'bottom':2,'border_color':'black','num_format':'0.00'}))
 
 
 #-------------------------------------------------metodologia---------------------------------------------------------------------------------
