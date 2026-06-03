@@ -488,9 +488,38 @@ if archivo_excel is not None:
             if contiene_valores and not df[col].isna().all():
                 nombre_columna_general = col
     columnas_pregunta_detectadas=[x for x in columnas_pregunta_detectadas if x not in columnas_todo_no_aplica]
+
+    # Nota sobre truncado de nombres (solo Qualtrics)
+    if metodo == "Qualtrics":
+        st.info(
+            "ℹ️ **Nombres de columna acortados:** Los encabezados largos de Qualtrics se recortan "
+            "hasta el último \" - \". Por ejemplo, *\"Por favor califique... - Los recursos empleados...\"* "
+            "queda como *\"Los recursos empleados...\"*. Ten esto en cuenta al seleccionar columnas abajo."
+        )
+
+    # --- Sección: Eliminar columnas no relevantes (opcional) ---
+    st.markdown('<div class="section-title">🗑️ Eliminar columnas innecesarias (opcional)</div>', unsafe_allow_html=True)
+    st.caption("Puedes excluir columnas que no aporten información al informe (metadatos de Qualtrics, campos vacíos, etc.).")
+    cols_a_eliminar = st.multiselect(
+        "Selecciona columnas a eliminar del análisis:",
+        options=df.columns.tolist(),
+        default=[],
+        key="cols_eliminar"
+    )
+    if cols_a_eliminar:
+        df = df.drop(columns=[c for c in cols_a_eliminar if c in df.columns])
+        st.session_state["df_encuesta"] = df
+        # Recalcular listas de preguntas y observaciones tras eliminar
+        columnas_pregunta_detectadas = [c for c in columnas_pregunta_detectadas if c not in cols_a_eliminar]
+        st.success(f"Se eliminaron {len(cols_a_eliminar)} columna(s). Quedan {len(df.columns)} columnas.")
+
     st.markdown('<div class="section-title">🧮 Columnas detectadas como preguntas</div>', unsafe_allow_html=True)
     st.info(f"Preguntas detectadas automáticamente (Sin incluir la pregunta de satisfacción general ): {columnas_pregunta_detectadas}")
-    columnas_seleccionadas = st.multiselect("🧾 Selecciona columnas adicionales (opcional)", options=df.columns.tolist(), default=columnas_pregunta_detectadas)
+    columnas_seleccionadas = st.multiselect(
+        "🧾 Selecciona columnas adicionales (opcional)"
+        + (" — nombre = texto después del último \" - \"" if metodo == "Qualtrics" else ""),
+        options=df.columns.tolist(), default=columnas_pregunta_detectadas
+    )
 
     # --- Detectar columnas de observaciones ---
     palabras_clave_obs = ["comentario", "sugerencia", "observacion"]
@@ -504,7 +533,11 @@ if archivo_excel is not None:
     #st.markdown(f"**📌 Columna general detectada:** `{nombre_columna_general}`")
     # Validar que el default exista en las columnas
     default_general = [nombre_columna_general] if nombre_columna_general and nombre_columna_general in df.columns else []
-    columna_general_seleccion = st.multiselect("📌 Selecciona la columna general (opcional)", options=df.columns.tolist(), default=default_general)
+    columna_general_seleccion = st.multiselect(
+        "📌 Selecciona la columna general (opcional)"
+        + (" — nombre = texto después del último \" - \"" if metodo == "Qualtrics" else ""),
+        options=df.columns.tolist(), default=default_general
+    )
     nombre_columna_general = columna_general_seleccion[0] if columna_general_seleccion else ""
         
    # Guardar en session_state para que otras páginas puedan acceder

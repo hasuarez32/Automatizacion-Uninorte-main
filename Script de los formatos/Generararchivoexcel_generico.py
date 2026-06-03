@@ -1,4 +1,4 @@
-def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[]):
+﻿def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[]):
     #Hoja de Dijitación
     import xlsxwriter
     import pandas as pd
@@ -128,7 +128,7 @@ def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_ob
     for row_num, row_data in enumerate(data.values):
         for col_num, cell_data in enumerate(row_data):
             if tiene_filtros and col_num == visible_col_idx:
-                Dijitacion.write_formula(row_num+1, col_num, f'=SUBTOTAL(103,A{row_num+2})', cell_format)
+                Dijitacion.write_formula(row_num+1, col_num, _make_vis_formula(row_num), cell_format)
                 continue
 
             if pd.isna(cell_data) or str(cell_data).strip() == '':
@@ -233,6 +233,41 @@ def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_ob
                 TG.write(row, col,None, workbook.add_format({'align': 'left','right': 2, 'bg_color': '#D3D3D3','border_color': 'black'}))
                 if row==18:
                     TG.write(row, col,None, workbook.add_format({'align': 'left','right': 2, 'bottom': 2,'bg_color': '#D3D3D3','border_color': 'black'}))
+    # ── Filtros desplegables (Data Validation nativa, sin VBA) ──────────
+    if tiene_filtros:
+        _fmt_lbl_f = workbook.add_format({
+            'align': 'left', 'valign': 'vcenter', 'bold': True, 'font_size': 8,
+            'bg_color': '#16365C', 'font_color': 'white',
+            'left': 1, 'right': 1, 'top': 1, 'bottom': 0, 'border_color': 'black'
+        })
+        _fmt_val_f = workbook.add_format({
+            'align': 'left', 'valign': 'vcenter', 'font_size': 9,
+            'bg_color': '#FFFFFF', 'font_color': '#333333',
+            'left': 1, 'right': 1, 'top': 0, 'bottom': 1, 'border_color': '#999999',
+            'italic': True
+        })
+        for _fi, _fc in enumerate(columnas_filtros_dinamicos):
+            _vals_dd = ['(Todos)'] + sorted(
+                data[_fc].fillna('Sin especificar').astype(str).unique().tolist()
+            )
+            # Valores en columnas ocultas de T+G (col 30+, fila 1000+)
+            _hcol = 30 + _fi
+            _base_r = 1000
+            for _rv, _vv in enumerate(_vals_dd):
+                TG.write(_base_r + _rv, _hcol, _vv)
+            TG.set_column(_hcol, _hcol, None, None, {'hidden': True})
+            _fl_r = 5 + _fi * 2   # fila etiqueta (0-indexed)
+            _fv_r = _fl_r + 1     # fila celda dropdown
+            TG.merge_range(_fl_r, 1, _fl_r, 3, _fc, _fmt_lbl_f)
+            TG.merge_range(_fv_r, 1, _fv_r, 3, '(Todos)', _fmt_val_f)
+            _v_s = xl_rowcol_to_cell(_base_r, _hcol, row_abs=True, col_abs=True)
+            _v_e = xl_rowcol_to_cell(_base_r + len(_vals_dd) - 1, _hcol,
+                                     row_abs=True, col_abs=True)
+            TG.data_validation(_fv_r, 1, _fv_r, 3, {
+                'validate': 'list',
+                'source': f'={_v_s}:{_v_e}'
+            })
+    # ─────────────────────────────────────────────────────────────────────
     TG.merge_range(7,4, 7, 7,'FICHA TÉCNICA',workbook.add_format({'align': 'center',   'left': 2,'right': 2,'top': 2,'bottom': 1,'bg_color': '#D3D3D3','border_color': 'black', 'bold':True}))
 
     texto_mas_largo = max(titulos_fichas, key=len)
