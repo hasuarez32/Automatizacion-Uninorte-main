@@ -4,6 +4,7 @@ import importlib.util
 import tempfile
 import os
 import ast
+import json
  # --- Funciones de procesamiento y pivotaje ---
 import io
 def procesar_excel(df):
@@ -51,6 +52,19 @@ def pivotear_excel(df):
         return data
     else:
         return df
+
+def _df_arrow_safe(d):
+    """Copia solo para visualización, compatible con Arrow.
+
+    Las columnas de preguntas mezclan enteros (1-5) y texto ('No aplica'), lo
+    que hace fallar la serialización de st.dataframe (ArrowInvalid en la
+    terminal). Convertir los valores no-texto de esas columnas a str evita el
+    error sin tocar los datos reales del reporte.
+    """
+    d2 = d.copy()
+    for c in d2.columns[d2.dtypes.eq("object")]:
+        d2[c] = d2[c].map(lambda v: v if (isinstance(v, str) or pd.isna(v)) else str(v))
+    return d2
 
 def procesar_qualtrics(df):
     # Procesamiento tipo Procesar_qualtrix.ipynb: limpieza de archivos exportados de Qualtrics
@@ -268,6 +282,60 @@ diccionario_oficinas = {
     }
 }
 
+# ── Oficinas / procesos personalizados por el usuario (persistentes) ──────────
+# Las oficinas de arriba son fijas. Desde la interfaz el usuario puede crear
+# oficinas nuevas o agregar procesos a oficinas existentes; esas adiciones se
+# guardan en 'oficinas_personalizadas.json' y se fusionan aquí para que
+# sobrevivan reinicios de la aplicación.
+OFICINAS_BASE = tuple(diccionario_oficinas.keys())
+RUTA_OFICINAS_PERSONALIZADAS = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "oficinas_personalizadas.json")
+
+
+def cargar_oficinas_personalizadas():
+    """Devuelve el dict de personalizaciones guardadas ({} si no hay o está dañado)."""
+    try:
+        if os.path.exists(RUTA_OFICINAS_PERSONALIZADAS):
+            with open(RUTA_OFICINAS_PERSONALIZADAS, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        pass
+    return {}
+
+
+def guardar_oficinas_personalizadas(data):
+    """Persiste el dict de personalizaciones en disco."""
+    with open(RUTA_OFICINAS_PERSONALIZADAS, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
+def fusionar_oficinas_personalizadas(base, personalizadas):
+    """Mezcla en 'base' (in-place) las oficinas/procesos añadidos por el usuario.
+
+    - Oficina que ya existe en base -> se agregan solo sus procesos nuevos.
+    - Oficina nueva                 -> se crea con su script (por defecto el
+                                       genérico) y sus procesos.
+    """
+    for oficina, cfg in personalizadas.items():
+        if not isinstance(cfg, dict):
+            continue
+        procesos = [str(p) for p in cfg.get("procesos", []) if str(p).strip()]
+        if oficina in base:
+            for p in procesos:
+                if p not in base[oficina]["procesos"]:
+                    base[oficina]["procesos"].append(p)
+        else:
+            base[oficina] = {
+                "script": cfg.get("script") or "Generararchivoexcel_generico",
+                "procesos": procesos or ["Proceso Personalizado"],
+            }
+    return base
+
+
+fusionar_oficinas_personalizadas(diccionario_oficinas, cargar_oficinas_personalizadas())
+
 st.set_page_config(page_title="Exportador de Excel", page_icon="📁", layout="wide")
 
 
@@ -408,10 +476,14 @@ elif "df_encuesta" in st.session_state:
 
 # --- Sección: Configuración ---
 st.markdown('<div class="section-title">2️⃣ Seleccionar oficina y parámetros</div>', unsafe_allow_html=True)
+_oficinas_disponibles = list(diccionario_oficinas.keys())
+_oficina_guardada = st.session_state.get("oficina_seleccionada", _oficinas_disponibles[0])
+if _oficina_guardada not in _oficinas_disponibles:
+    _oficina_guardada = _oficinas_disponibles[0]
 oficina_seleccionada = st.selectbox(
     "🏢 Selecciona la oficina",
-    options=list(diccionario_oficinas.keys()),
-    index=list(diccionario_oficinas.keys()).index(st.session_state.get("oficina_seleccionada", list(diccionario_oficinas.keys())[0]))
+    options=_oficinas_disponibles,
+    index=_oficinas_disponibles.index(_oficina_guardada)
 )
 st.session_state["oficina_seleccionada"] = oficina_seleccionada
 procesos_disponibles = diccionario_oficinas[oficina_seleccionada]["procesos"]
@@ -425,6 +497,114 @@ proceso_seleccionado = st.selectbox(
     index=procesos_disponibles.index(valor_guardado)
 )
 st.session_state["proceso_seleccionado"] = proceso_seleccionado
+
+# --- Agregar / gestionar oficinas y procesos ---
+with st.expander("➕ Agregar o gestionar oficinas y procesos"):
+    st.caption(
+        "Crea una oficina nueva, agrega un proceso a una oficina existente o "
+        "elimina las personalizaciones que hayas creado. Los cambios quedan "
+        "guardados de forma permanente."
+    )
+    _modo_gestion = st.radio(
+        "¿Qué deseas hacer?",
+        ["Nueva oficina", "Agregar proceso a oficina existente", "Eliminar personalizados"],
+        horizontal=True,
+        key="modo_gestion_oficina"
+    )
+
+    if _modo_gestion == "Nueva oficina":
+        _nueva_of = st.text_input("🏢 Nombre de la nueva oficina", key="in_nueva_oficina")
+        _nuevo_pr = st.text_input("🧪 Primer proceso asociado", key="in_nueva_oficina_proc")
+        _opts_formato = list(diccionario_oficinas.keys())
+        _idx_formato = (_opts_formato.index("Oficina Genérica / Personalizada")
+                        if "Oficina Genérica / Personalizada" in _opts_formato else 0)
+        _formato = st.selectbox(
+            "📄 Formato base del informe",
+            options=_opts_formato,
+            index=_idx_formato,
+            help="La nueva oficina generará el informe con el mismo formato/script de "
+                 "la oficina elegida aquí. Si no estás seguro, deja 'Oficina Genérica / "
+                 "Personalizada'."
+        )
+        if st.button("💾 Guardar nueva oficina", key="btn_nueva_oficina"):
+            _n = _nueva_of.strip()
+            _p = _nuevo_pr.strip()
+            if not _n:
+                st.warning("⚠️ Escribe el nombre de la oficina.")
+            elif not _p:
+                st.warning("⚠️ Escribe el primer proceso asociado.")
+            elif _n in diccionario_oficinas:
+                st.warning(f"⚠️ La oficina '{_n}' ya existe. Usa 'Agregar proceso a oficina existente'.")
+            else:
+                _custom = cargar_oficinas_personalizadas()
+                _custom[_n] = {
+                    "script": diccionario_oficinas[_formato]["script"],
+                    "procesos": [_p],
+                }
+                guardar_oficinas_personalizadas(_custom)
+                st.session_state["oficina_seleccionada"] = _n
+                st.session_state["proceso_seleccionado"] = _p
+                st.success(f"✅ Oficina '{_n}' creada con el proceso '{_p}'.")
+                st.rerun()
+
+    elif _modo_gestion == "Agregar proceso a oficina existente":
+        _of_dest = st.selectbox(
+            "🏢 Oficina", options=list(diccionario_oficinas.keys()), key="sel_of_dest")
+        _pr_nuevo = st.text_input("🧪 Nuevo proceso a agregar", key="in_proc_existente")
+        if st.button("💾 Agregar proceso", key="btn_agregar_proceso"):
+            _p = _pr_nuevo.strip()
+            if not _p:
+                st.warning("⚠️ Escribe el nombre del proceso.")
+            elif _p in diccionario_oficinas[_of_dest]["procesos"]:
+                st.warning(f"⚠️ El proceso '{_p}' ya existe en '{_of_dest}'.")
+            else:
+                _custom = cargar_oficinas_personalizadas()
+                _entry = _custom.get(_of_dest, {})
+                _procs = _entry.get("procesos", [])
+                _procs.append(_p)
+                _entry["procesos"] = _procs
+                _custom[_of_dest] = _entry
+                guardar_oficinas_personalizadas(_custom)
+                st.session_state["oficina_seleccionada"] = _of_dest
+                st.session_state["proceso_seleccionado"] = _p
+                st.success(f"✅ Proceso '{_p}' agregado a '{_of_dest}'.")
+                st.rerun()
+
+    else:  # Eliminar personalizados
+        _custom = cargar_oficinas_personalizadas()
+        _items = []  # (label, tipo, oficina, proceso)
+        for _off, _cfg in _custom.items():
+            if not isinstance(_cfg, dict):
+                continue
+            if _off not in OFICINAS_BASE:
+                _items.append((f"🏢 Oficina completa: {_off}", "oficina", _off, None))
+            for _p in _cfg.get("procesos", []):
+                _items.append((f"🧪 Proceso: {_p}  —  ({_off})", "proceso", _off, _p))
+        if not _items:
+            st.info("No hay oficinas ni procesos personalizados para eliminar.")
+        else:
+            _sel_label = st.selectbox(
+                "Selecciona qué eliminar", options=[it[0] for it in _items], key="sel_eliminar")
+            st.caption("Solo se pueden eliminar oficinas y procesos que tú hayas agregado; "
+                       "las oficinas y procesos originales no se ven afectados.")
+            if st.button("🗑️ Eliminar", key="btn_eliminar_personalizado"):
+                _tipo, _off, _p = next((it[1], it[2], it[3]) for it in _items if it[0] == _sel_label)
+                _custom2 = cargar_oficinas_personalizadas()
+                if _tipo == "oficina":
+                    _custom2.pop(_off, None)
+                else:
+                    _entry = _custom2.get(_off, {})
+                    _procs = [x for x in _entry.get("procesos", []) if x != _p]
+                    if _procs:
+                        _entry["procesos"] = _procs
+                        _custom2[_off] = _entry
+                    else:
+                        # sin procesos añadidos: quitar la entrada (revierte a base o
+                        # elimina la oficina personalizada por completo)
+                        _custom2.pop(_off, None)
+                guardar_oficinas_personalizadas(_custom2)
+                st.success("✅ Elemento eliminado.")
+                st.rerun()
 
 # Campo adicional para nombre de oficina personalizado (solo para Oficina Genérica)
 if oficina_seleccionada == "Oficina Genérica / Personalizada":
@@ -471,12 +651,12 @@ if archivo_excel is not None:
         if archivo_excel is not None and not df.empty:
 
             # Filtros eliminados de la barra lateral, solo se muestra la tabla filtrada si aplica
-            st.dataframe(df, width='stretch')
+            st.dataframe(_df_arrow_safe(df), width='stretch')
 
         else:
             st.sidebar.warning("⚠️ Sube un archivo Excel para aplicar los filtros.")
     else:   
-        st.dataframe(df, width='stretch')
+        st.dataframe(_df_arrow_safe(df), width='stretch')
     columnas_todo_no_aplica = [col for col in df.columns if (df[col] == "No Aplica").all()]
     # --- Detectar columnas de preguntas automáticamente ---
     posibles_valores = {"1", "2", "3", "4", "5", "No Aplica",
@@ -524,11 +704,124 @@ if archivo_excel is not None:
 
     st.markdown('<div class="section-title">🧮 Columnas detectadas como preguntas</div>', unsafe_allow_html=True)
     st.info(f"Preguntas detectadas automáticamente (Sin incluir la pregunta de satisfacción general ): {columnas_pregunta_detectadas}")
-    columnas_seleccionadas = st.multiselect(
-        "🧾 Selecciona columnas adicionales (opcional)"
-        + (" — nombre = texto después del último \" - \"" if metodo == "Qualtrics" else ""),
-        options=df.columns.tolist(), default=columnas_pregunta_detectadas
+    # ── Atributos del reporte + categorías (comparten estado) ────────────────
+    # El pool de arriba y las categorías se comportan como un solo conjunto:
+    # asignar un atributo a una categoría lo QUITA del pool (movimiento real),
+    # quitarlo de la categoría lo DEVUELVE al pool. Nada se duplica ni se pierde.
+    _opts_cols = df.columns.tolist()
+
+    # Cambio de archivo/columnas -> reiniciar pool y categorías
+    _fp_cols = hash(tuple(_opts_cols))
+    if st.session_state.get("_fp_cols_adicionales") != _fp_cols:
+        st.session_state["_fp_cols_adicionales"] = _fp_cols
+        st.session_state["cols_adicionales"] = list(columnas_pregunta_detectadas)
+        for _k in [k for k in st.session_state if str(k).startswith("cat_attrs_")]:
+            st.session_state[_k] = []
+        st.session_state["_cat_attrs_snapshot"] = {}
+
+    _usar_cat_estado = bool(st.session_state.get("usar_categorias", False))
+    _idx_cats = sorted({int(str(k).rsplit("_", 1)[1]) for k in st.session_state
+                        if str(k).startswith("cat_attrs_")})
+
+    if not _usar_cat_estado and st.session_state.get("_usar_cat_last", False):
+        # Se acaba de DESACTIVAR el modo: devolver todo al pool y limpiar categorías
+        _pool = [c for c in st.session_state.get("cols_adicionales", []) if c in _opts_cols]
+        for _ci in _idx_cats:
+            for a in st.session_state.get(f"cat_attrs_{_ci}", []):
+                if a in _opts_cols and a not in _pool:
+                    _pool.append(a)
+            st.session_state[f"cat_attrs_{_ci}"] = []
+        st.session_state["cols_adicionales"] = _pool
+        st.session_state["_cat_attrs_snapshot"] = {}
+    elif _usar_cat_estado:
+        # ── Reconciliación ANTES de dibujar los widgets (semántica de 'mover') ──
+        _snap = st.session_state.get("_cat_attrs_snapshot", {})
+        _n_cat_vig = int(st.session_state.get("n_categorias", 1) or 1)
+        _cur, _recien, _devueltos = {}, {}, []
+        for _ci in _idx_cats:
+            _lista = [a for a in st.session_state.get(f"cat_attrs_{_ci}", []) if a in _opts_cols]
+            if _ci >= _n_cat_vig:
+                # categoría eliminada (bajó el número): sus atributos vuelven al pool
+                _devueltos.extend(_lista)
+                _cur[_ci] = []
+            else:
+                _cur[_ci] = _lista
+            _recien[_ci] = [a for a in _cur[_ci] if a not in _snap.get(_ci, [])]
+        # 1) atributo recién agregado a una categoría -> se quita de las demás
+        for _ci in _idx_cats:
+            _mover = {a for _cj, _ads in _recien.items() if _cj != _ci for a in _ads}
+            _cur[_ci] = [a for a in _cur[_ci] if a not in _mover or a in _recien.get(_ci, [])]
+        _asignados_now = {a for _l in _cur.values() for a in _l}
+        # 2) atributo quitado de una categoría -> vuelve al pool
+        for _ci in _idx_cats:
+            for a in _snap.get(_ci, []):
+                if a not in _asignados_now and a in _opts_cols:
+                    _devueltos.append(a)
+        # 3) actualizar pool: los asignados salen, los devueltos entran
+        _pool = [c for c in st.session_state.get("cols_adicionales", []) if c in _opts_cols]
+        _pool = [c for c in _pool if c not in _asignados_now]
+        for a in _devueltos:
+            if a not in _pool and a not in _asignados_now:
+                _pool.append(a)
+        st.session_state["cols_adicionales"] = _pool
+        for _ci in _idx_cats:
+            st.session_state[f"cat_attrs_{_ci}"] = _cur[_ci]
+        st.session_state["_cat_attrs_snapshot"] = {_ci: list(_cur[_ci]) for _ci in _idx_cats}
+    st.session_state["_usar_cat_last"] = _usar_cat_estado
+
+    _lbl_extra = " — nombre = texto después del último \" - \"" if metodo == "Qualtrics" else ""
+    _lbl_pool = ("🧾 Atributos sin categoría (irán a GENERAL)" if _usar_cat_estado
+                 else "🧾 Selecciona columnas adicionales (opcional)") + _lbl_extra
+    _pool_sel = st.multiselect(_lbl_pool, options=_opts_cols, key="cols_adicionales")
+
+    # Lista COMPLETA de atributos del reporte = pool + asignados a categorías
+    _asignados_all = []
+    for _ci in _idx_cats:
+        _asignados_all.extend(st.session_state.get(f"cat_attrs_{_ci}", []))
+    columnas_seleccionadas = list(dict.fromkeys(list(_pool_sel) + _asignados_all))
+
+    #--- Segmentar atributos por categorías (opcional) ---
+    st.markdown('<div class="section-title">🗂️ Segmentar atributos por categorías (opcional)</div>', unsafe_allow_html=True)
+    usar_categorias = st.checkbox(
+        "Agrupar las tarjetas de atributos bajo encabezados de categoría (como en el informe OFE)",
+        key="usar_categorias"
     )
+    categorias_def = []
+    if usar_categorias:
+        if not columnas_seleccionadas:
+            st.warning("⚠️ Primero selecciona las columnas de preguntas (atributos) justo arriba.")
+        else:
+            st.caption(
+                "Selecciona atributos en cada categoría: **se mueven automáticamente** — desaparecen "
+                "de la lista de arriba (o de la otra categoría donde estaban). Si los quitas de la "
+                "categoría, vuelven a la lista de arriba. Los que queden arriba irán a **GENERAL**."
+            )
+            _n_cat = st.number_input(
+                "¿Cuántas categorías quieres crear?", min_value=1, max_value=40,
+                step=1, key="n_categorias"
+            )
+            for _ci in range(int(_n_cat)):
+                _c1, _c2 = st.columns([1, 2])
+                with _c1:
+                    _nom = st.text_input(f"Nombre de la categoría {_ci + 1}", key=f"cat_nombre_{_ci}")
+                with _c2:
+                    _sel = st.multiselect(
+                        f"Atributos de la categoría {_ci + 1}",
+                        options=columnas_seleccionadas,
+                        key=f"cat_attrs_{_ci}",
+                        help="Al seleccionar un atributo aquí, se mueve a esta categoría."
+                    )
+                if _nom.strip() and _sel:
+                    categorias_def.append({"nombre": _nom.strip(), "atributos": list(_sel)})
+            if _pool_sel:
+                st.info(
+                    f"📦 {len(_pool_sel)} atributo(s) sin asignar irán a la categoría **GENERAL**: "
+                    + ", ".join(list(_pool_sel)[:5]) + ("…" if len(_pool_sel) > 5 else "")
+                )
+            else:
+                st.success("✅ Todos los atributos están asignados a una categoría.")
+    st.session_state["categorias_def"] = categorias_def if usar_categorias else []
+    st.session_state["usar_categorias_flag"] = bool(usar_categorias)
 
     # --- Detectar columnas de observaciones ---
     palabras_clave_obs = ["comentario", "sugerencia", "observacion"]
@@ -673,6 +966,10 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                     # Obtener filtros dinámicos (disponibles para TODAS las oficinas)
                     filtros_dinamicos = st.session_state.get("columnas_filtros_dinamicos", [])
 
+                    # Categorías de atributos (opcional): lista de {nombre, atributos}
+                    _usar_cat = st.session_state.get("usar_categorias_flag", False)
+                    _categorias = st.session_state.get("categorias_def", []) if _usar_cat else None
+
                     # Sanitizar nombres de columna: eliminar caracteres que rompen
                     # referencias estructurales Excel TB[col] ([, ], #, &)
                     def _sanitize_col(c):
@@ -686,6 +983,12 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                         comentarios = [_rename_map.get(c, c) for c in comentarios]
                         general     = _rename_map.get(general, general)
                         filtros_dinamicos   = [_rename_map.get(f, f) for f in filtros_dinamicos]
+                        if _categorias:
+                            _categorias = [
+                                {"nombre": _c.get("nombre", ""),
+                                 "atributos": [_rename_map.get(a, a) for a in _c.get("atributos", [])]}
+                                for _c in _categorias
+                            ]
 
                     # Llamar excel_exportar para TODAS las oficinas con soporte de filtros
                     import io, contextlib
@@ -698,7 +1001,8 @@ if st.button("🚀 Ejecutar función excel_exportar"):
                                 general, oficina, proceso, periodo_unico, tipos_grafica,
                                 filtros_dinamicos,
                                 col_segmentacion=st.session_state.get("col_segmentacion", ""),
-                                poblaciones_por_segmento=st.session_state.get("poblaciones_por_segmento", {})
+                                poblaciones_por_segmento=st.session_state.get("poblaciones_por_segmento", {}),
+                                categorias=_categorias
                             )
                     # Si se generó .xlsm (VBA + dropdowns), apuntar al nuevo archivo
                     ruta_xlsm = f"{nombre_archivo}.xlsm"

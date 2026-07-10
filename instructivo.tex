@@ -24,6 +24,7 @@
 \usepackage{caption}
 
 \tcbuselibrary{skins, breakable, listings}
+\usetikzlibrary{shadows}
 
 % ─── Geometría ──────────────────────────────────────────────────────────────
 \geometry{
@@ -145,6 +146,13 @@
 }
 
 % ─── Comando para capturas de pantalla enmarcadas ───────────────────────────
+\newcommand{\imgoplaceholder}[1]{%
+  \begin{center}\color{grismedio}\itshape
+    \faImage\;\; Captura de pantalla no disponible en esta copia.\\[2pt]
+    \small Consulte esta pantalla directamente en la aplicación (archivo: \texttt{#1}).
+  \end{center}%
+}
+
 \newcommand{\captura}[2][]{%
   \begin{tcolorbox}[
     enhanced,
@@ -156,7 +164,7 @@
     left=4pt, right=4pt, top=4pt, bottom=0pt,
     #1
   ]
-    \includegraphics[width=\linewidth]{#2}%
+    \IfFileExists{#2}{\includegraphics[width=\linewidth]{#2}}{\imgoplaceholder{#2}}%
   \end{tcolorbox}%
 }
 
@@ -177,7 +185,7 @@
     left=4pt, right=4pt, top=8pt, bottom=0pt,
     #1
   ]
-    \includegraphics[width=\linewidth]{#3}%
+    \IfFileExists{#3}{\includegraphics[width=\linewidth]{#3}}{\imgoplaceholder{#3}}%
   \end{tcolorbox}%
 }
 
@@ -234,7 +242,7 @@
   \end{tcolorbox}
 
   \vspace{1.5cm}
-  {\small Versión 1.0 — 2025}
+  {\small Versión 2.0 — 2026}
 
 \end{titlepage}
 \nopagecolor
@@ -272,11 +280,22 @@ En lugar de calcular manualmente promedios, porcentajes y crear gráficos, usted
   \begin{itemize}[leftmargin=0.5cm]
     \item Ficha técnica con tamaño de muestra y margen de error.
     \item Tablas de satisfacción por cada pregunta de la encuesta.
-    \item Gráficos de torta y barras para cada atributo evaluado.
-    \item Índice de Satisfacción del Cliente (ISC).
+    \item Gráficos de barras para cada atributo evaluado.
+    \item Índice de Satisfacción del Cliente (ISC) ponderado por correlación.
     \item Matriz de Importancia vs. Satisfacción.
-    \item Filtros interactivos (segmentadores) para explorar los datos.
+    \item Filtros desplegables para explorar los datos por grupos.
+    \item (Opcional) Los atributos agrupados bajo encabezados de categoría.
   \end{itemize}
+\end{info}
+
+\begin{info}[Novedades de esta versión (2.0)]
+  Además de generar el reporte, ahora puede:
+  \begin{itemize}[leftmargin=0.5cm]
+    \item \textbf{Agrupar los atributos por categorías} con un encabezado de color (por ejemplo: ``Crédito Uninorte'', ``Becas'', etc.).
+    \item \textbf{Segmentar por población}, cuando la encuesta mezcla grupos de distinto tamaño (por ejemplo, pregrado y posgrado).
+    \item \textbf{Agregar una oficina o un proceso nuevo} desde la misma pantalla, sin tocar el código.
+  \end{itemize}
+  Todas estas funciones se explican en la Sección~\ref{sec:avanzadas}.
 \end{info}
 
 % ════════════════════════════════════════════════════════
@@ -405,29 +424,31 @@ La \textbf{ventana de comandos} (también llamada ``terminal'' o ``consola'') es
 
 Las \textbf{librerías} son pequeños programas adicionales que el sistema necesita para funcionar. Solo deben instalarse una vez. Con la terminal abierta en la carpeta del proyecto, siga los pasos a continuación.
 
-\begin{paso}{5 — Instalar las librerías principales}
-  En la ventana negra (terminal), escriba o pegue el siguiente comando y presione \textbf{Enter}:
+\begin{paso}{5 — Instalar todas las librerías de una sola vez}
+  La carpeta del proyecto incluye un archivo llamado \texttt{requirements.txt} que contiene la lista completa de librerías necesarias. Para instalarlas todas juntas, en la ventana negra (terminal) escriba o pegue este único comando y presione \textbf{Enter}:
   \begin{comando}
-    pip install xlsxwriter textwrap3
+    pip install -r requirements.txt
   \end{comando}
-  Verá texto desplazándose en pantalla. Espere hasta que aparezca de nuevo el símbolo \texttt{>} parpadeando. Esto puede tomar entre 1 y 3 minutos.
+  Verá bastante texto desplazándose en pantalla. Espere hasta que aparezca de nuevo el símbolo \texttt{>} parpadeando. Esto puede tomar entre 3 y 8 minutos la primera vez.
 \end{paso}
 
-\begin{paso}{6 — Instalar la librería de visualización}
-  Escriba o pegue el siguiente comando y presione \textbf{Enter}:
-  \begin{comando}
-    pip install streamlit-aggrid
-  \end{comando}
-  Espere a que termine la instalación.
-\end{paso}
-
-\begin{info}[¿Qué son estas librerías?]
+\begin{info}[¿Qué son estas librerías y para qué sirven?]
+  El comando anterior instala automáticamente todas estas piezas:
   \begin{itemize}[leftmargin=0.5cm]
-    \item \textbf{xlsxwriter}: Le permite al programa crear y escribir archivos de Excel (.xlsx).
-    \item \textbf{textwrap3}: Ayuda a ajustar y organizar el texto dentro de los reportes.
-    \item \textbf{streamlit-aggrid}: Permite mostrar tablas interactivas en la pantalla del programa.
+    \item \textbf{streamlit}: Convierte el programa en una página web que se ve en el navegador.
+    \item \textbf{pandas} y \textbf{numpy}: Leen y hacen los cálculos con los datos de la encuesta.
+    \item \textbf{openpyxl} y \textbf{xlsxwriter}: Leen y crean los archivos de Excel (.xlsx).
+    \item \textbf{pywin32}: Permite a Excel crear los filtros interactivos (solo Windows).
+    \item \textbf{textwrap3}, \textbf{streamlit-aggrid}, \textbf{matplotlib}, \textbf{seaborn}: Ajustan el texto y muestran tablas y gráficos.
   \end{itemize}
 \end{info}
+
+\begin{aviso}[Si el comando anterior no funciona]
+  Si aparece un error diciendo que no encuentra \texttt{requirements.txt}, es porque la terminal no está abierta dentro de la carpeta del proyecto. Vuelva al \textbf{Paso 4}. Como alternativa, puede instalar todo escribiendo este comando (una sola línea larga):
+  \begin{comando}
+    pip install streamlit pandas numpy openpyxl xlsxwriter pywin32 textwrap3 streamlit-aggrid matplotlib seaborn
+  \end{comando}
+\end{aviso}
 
 \begin{solucion}[Si aparece el error ``pip no se reconoce como comando'']
   Esto significa que Python no se instaló correctamente con la opción PATH. Soluciones:
@@ -442,7 +463,7 @@ Las \textbf{librerías} son pequeños programas adicionales que el sistema neces
 \section{Ejecutar el programa}
 % ════════════════════════════════════════════════════════
 
-\begin{paso}{7 — Iniciar el sistema}
+\begin{paso}{6 — Iniciar el sistema}
   Con la terminal abierta \textbf{dentro de la carpeta del proyecto}, escriba o pegue el siguiente comando y presione \textbf{Enter}:
   \begin{comando}
     python -m streamlit run Cargue.py
@@ -578,8 +599,12 @@ Esta sección es la más importante. El programa detecta automáticamente las co
   \item \textbf{Columnas de preguntas:} El programa detecta automáticamente las columnas con calificaciones del 1 al 5 y las selecciona. Puede ajustar la selección si es necesario.
   \item \textbf{Columnas de observaciones:} (Opcional) Seleccione las columnas que contienen comentarios o texto libre de los encuestados.
   \item \textbf{Satisfacción general:} Seleccione la columna que contiene la calificación global de satisfacción. En el ejemplo de la imagen se seleccionó \textit{``El nivel de satisfacción general en relación al servicio obtenido es:''}.
-  \item \textbf{Columnas para filtros dinámicos:} (Opcional) Seleccione columnas como \textit{Sede}, \textit{Departamento}, \textit{Tipo de caso}, etc. El programa creará filtros interactivos en el Excel para segmentar los datos por estas categorías.
+  \item \textbf{Columnas para filtros dinámicos:} (Opcional) Seleccione columnas como \textit{Sede}, \textit{Programa}, \textit{Tipo de caso}, etc. El programa creará listas desplegables en el Excel para segmentar los datos por esos grupos (ver Sección~\ref{sec:avanzadas}).
 \end{enumerate}
+
+\begin{info}[Agrupar los atributos por categorías]
+  Justo debajo de la lista de columnas hay una opción para \textbf{agrupar los atributos bajo encabezados de categoría}. Es opcional y se explica en la Sección~\ref{sec:avanzadas}.
+\end{info}
 
 % ──────────────────────────────────────────────────────
 \subsection{Paso E — Generar y descargar el reporte}
@@ -599,8 +624,90 @@ Esta sección es la más importante. El programa detecta automáticamente las co
   \item El archivo \texttt{.xlsx} se descargará a su carpeta de Descargas.
 \end{enumerate}
 
-\begin{info}[Sobre los filtros interactivos (segmentadores)]
-  Si seleccionó columnas para filtros dinámicos, al abrir el Excel descargado verá unos paneles llamados \textbf{segmentadores}. Haciendo clic en las opciones de cada panel, las tablas y métricas del reporte se actualizan automáticamente mostrando solo los datos del grupo seleccionado.
+\begin{info}[Sobre los filtros desplegables]
+  Si seleccionó columnas para filtros dinámicos, al abrir el Excel descargado verá, en la hoja \textbf{T+G} (a la derecha del reporte), un panel llamado \textbf{``FILTROS DINÁMICOS''} con listas desplegables. Al elegir un valor en una lista (por ejemplo, un programa académico), todas las tablas, porcentajes y gráficos del reporte se recalculan mostrando solo ese grupo. Para volver a ver todo, elija la opción \textbf{``(Todos)''}.
+\end{info}
+
+% ════════════════════════════════════════════════════════
+\section{Funciones adicionales (opcionales)}\label{sec:avanzadas}
+% ════════════════════════════════════════════════════════
+
+Las siguientes funciones son \textbf{opcionales}. Si solo necesita el reporte estándar, puede ignorarlas por completo. Se activan en la misma pantalla, antes de generar el reporte.
+
+% ──────────────────────────────────────────────────────
+\subsection{Filtros desplegables (segmentar los datos)}
+% ──────────────────────────────────────────────────────
+
+Sirven para analizar los datos por grupos (por ejemplo: por programa, por sede o por tipo de estudiante) \textbf{sin generar varios reportes}. Un solo archivo permite ver los resultados de cada grupo.
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item En la sección \textbf{``Seleccionar columnas para filtros dinámicos''}, elija una o más columnas (por ejemplo \textit{Programa}, \textit{Sede}).
+  \item Genere el reporte normalmente.
+  \item Abra el Excel y vaya a la hoja \textbf{T+G}. A la derecha verá el panel \textbf{``FILTROS DINÁMICOS''}.
+  \item Elija un valor en cualquier lista desplegable: todo el reporte se actualiza al instante. Elija \textbf{``(Todos)''} para volver a la vista completa.
+\end{enumerate}
+
+\begin{info}[No necesita saber de macros]
+  Estos filtros son listas desplegables normales de Excel: funcionan con solo abrir el archivo, sin activar macros ni contenido especial.
+\end{info}
+
+% ──────────────────────────────────────────────────────
+\subsection{Segmentación por población}
+% ──────────────────────────────────────────────────────
+
+Úsela cuando su encuesta reúne \textbf{grupos de tamaño muy distinto} (por ejemplo, 3.000 estudiantes de pregrado y 1.000 de posgrado). Así la ficha técnica y la muestra mínima se calculan correctamente para cada grupo.
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item En \textbf{``Segmentación por población''}, elija la \textbf{columna que identifica el grupo} de cada persona (por ejemplo, la columna \textit{``Usted es:''}).
+  \item Escriba el \textbf{número total (N)} de personas de cada grupo en los campos que aparecen.
+  \item El sistema suma los grupos y, cuando usted filtra por un grupo en el Excel, la población y la muestra se ajustan solas a ese grupo.
+\end{enumerate}
+
+\begin{aviso}[El campo ``Número de población'' se ignora]
+  Cuando activa la segmentación por población, el sistema usa la suma de los grupos y \textbf{ya no toma en cuenta} el campo ``Número de población'' de más arriba. Esto es normal.
+\end{aviso}
+
+% ──────────────────────────────────────────────────────
+\subsection{Agrupar los atributos por categorías}
+% ──────────────────────────────────────────────────────
+
+Normalmente las tarjetas de cada atributo (pregunta) aparecen una tras otra. Con esta función puede \textbf{agruparlas bajo encabezados de color} con el nombre que usted elija —por ejemplo, ``Canales de atención'', ``Crédito Uninorte'', ``Becas''— tal como en el informe de la OFE.
+
+\begin{enumerate}[leftmargin=1cm, label=\textcolor{verdepaso}{\arabic*.}]
+  \item Active la casilla \textbf{``Agrupar las tarjetas de atributos bajo encabezados de categoría''}.
+  \item Indique \textbf{cuántas categorías} quiere crear.
+  \item A cada categoría póngale un \textbf{nombre} y seleccione los \textbf{atributos} que le corresponden.
+  \item Los atributos que no asigne a ninguna categoría se agruparán solos en una categoría final llamada \textbf{``GENERAL''}.
+\end{enumerate}
+
+\begin{info}[Los atributos ``se mueven'', no se duplican]
+  La lista de arriba (``Atributos sin categoría'') y las categorías comparten los mismos atributos. Cuando selecciona un atributo dentro de una categoría, ese atributo \textbf{desaparece de la lista de arriba} (se movió allí). Si lo quita de la categoría, \textbf{vuelve} a la lista de arriba. De este modo un atributo nunca queda repetido en dos lugares.
+\end{info}
+
+% ──────────────────────────────────────────────────────
+\subsection{Agregar una oficina o un proceso nuevo}
+% ──────────────────────────────────────────────────────
+
+Si su oficina o su proceso no aparecen en las listas, puede crearlos desde la misma pantalla, sin tocar el código. Busque el apartado \textbf{``Agregar o gestionar oficinas y procesos''} (debajo de los menús de oficina y proceso).
+
+\begin{center}
+\begin{tabular}{>{\bfseries\color{uninorteazul}}m{4.5cm} m{9cm}}
+  \toprule
+  Opción & Qué hace \\
+  \midrule
+  Nueva oficina & Crea una oficina nueva con su primer proceso. Debe elegir un \textbf{``Formato base''} (el diseño del informe que usará). \\
+  \addlinespace
+  Agregar proceso a oficina existente & Añade otro proceso a una oficina que ya existe (una oficina puede tener varios procesos). \\
+  \addlinespace
+  Eliminar personalizados & Borra solo lo que usted creó; las oficinas y procesos originales no se tocan. \\
+  \bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+
+\begin{info}[¿Se crea un programa nuevo para mi oficina?]
+  No. Lo que usted agrega se \textbf{guarda de forma permanente} (sobrevive aunque cierre el programa) y su oficina nueva usa el \textbf{mismo diseño de informe} del ``Formato base'' que eligió. El nombre del proceso es solo una etiqueta que aparece en el reporte. Si no está seguro de qué formato base elegir, deje \textbf{``Oficina Genérica / Personalizada''}.
 \end{info}
 
 % ════════════════════════════════════════════════════════
@@ -627,7 +734,7 @@ Esta sección es la más importante. El programa detecta automáticamente las co
   \begin{enumerate}[leftmargin=0.5cm, label=\textcolor{rojopeligro}{\arabic*.}]
     \item Cierre el programa con \textbf{Ctrl + C} en la terminal.
     \item Asegúrese de que Excel no tenga abierto el mismo archivo que está intentando generar.
-    \item Vuelva a ejecutar el programa con el comando del Paso 7.
+    \item Vuelva a ejecutar el programa con el comando del Paso 6.
     \item Intente con un archivo de datos más pequeño para descartar problemas de memoria.
   \end{enumerate}
 \end{solucion}
@@ -641,7 +748,7 @@ Esta sección es la más importante. El programa detecta automáticamente las co
 \end{solucion}
 
 \begin{solucion}[Error ``Address already in use'' al iniciar]
-  El programa ya está corriendo en otra ventana. Puede acceder directamente desde el navegador en \texttt{http://localhost:8501}, o cierre todas las terminales y vuelva a ejecutar el Paso 7.
+  El programa ya está corriendo en otra ventana. Puede acceder directamente desde el navegador en \texttt{http://localhost:8501}, o cierre todas las terminales y vuelva a ejecutar el Paso 6.
 \end{solucion}
 
 % ════════════════════════════════════════════════════════
@@ -653,7 +760,7 @@ Esta sección es la más importante. El programa detecta automáticamente las co
   \toprule
   \textcolor{uninorteazul}{Acción} & \textcolor{uninorteazul}{Comando en la terminal} \\
   \midrule
-  Instalar librerías faltantes & \texttt{pip install xlsxwriter textwrap3 streamlit-aggrid} \\
+  Instalar todas las librerías & \texttt{pip install -r requirements.txt} \\
   \addlinespace
   Iniciar el programa & \texttt{python -m streamlit run Cargue.py} \\
   \addlinespace
@@ -693,8 +800,20 @@ Esta sección es la más importante. El programa detecta automáticamente las co
   \item[\textcolor{uninorteazul}{ISC}]
     Índice de Satisfacción del Cliente. Indicador global que combina la importancia de cada atributo con su nivel de satisfacción.
 
-  \item[\textcolor{uninorteazul}{Segmentador / Slicer}]
-    Panel interactivo en Excel que permite filtrar los datos haciendo clic en categorías. Al seleccionar una opción, todas las tablas y métricas del reporte se actualizan automáticamente.
+  \item[\textcolor{uninorteazul}{Filtro dinámico / Segmentador}]
+    Lista desplegable en Excel (hoja T+G) que permite filtrar los datos por grupos. Al elegir un valor, todas las tablas y métricas del reporte se actualizan automáticamente. Con ``(Todos)'' se vuelve a la vista completa.
+
+  \item[\textcolor{uninorteazul}{Atributo}]
+    Cada aspecto evaluado en la encuesta (cada pregunta de satisfacción). En el reporte, cada atributo tiene su propia tarjeta con tabla y gráfico.
+
+  \item[\textcolor{uninorteazul}{Categoría}]
+    Grupo con nombre bajo el cual se agrupan varias tarjetas de atributos en el reporte (por ejemplo, ``Becas''). Es una función opcional.
+
+  \item[\textcolor{uninorteazul}{Segmentación por población}]
+    Opción para indicar el tamaño total (N) de cada grupo cuando la encuesta reúne poblaciones distintas (por ejemplo, pregrado y posgrado), de modo que la muestra se calcule bien para cada uno.
+
+  \item[\textcolor{uninorteazul}{Correlación / NIP}]
+    Medida (entre 0 y 1) de qué tan relacionado está un atributo con la satisfacción general. Se usa como ``peso'' (Nivel de Importancia Ponderado) para calcular el ISC: los atributos más relacionados pesan más.
 \end{description}
 
 % ════════════════════════════════════════════════════════

@@ -1,4 +1,4 @@
-﻿def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[], col_segmentacion="", poblaciones_por_segmento=None):
+﻿def excel_exportar(data, nombre_archivo,numerodepoblacion, Preguntas,columnas_observaciones,general,oficina,proceso, perido,tipos_grafica, columnas_filtros_dinamicos=[], col_segmentacion="", poblaciones_por_segmento=None, categorias=None):
     #Hoja de Dijitación
     import xlsxwriter
     import pandas as pd
@@ -19,6 +19,28 @@
         poblaciones_por_segmento = {}
     tiene_filtros = len(columnas_filtros_dinamicos) > 0
     
+    # ── Ubicación del panel de filtros dinámicos ─────────────────────
+    # Carril libre a la derecha del reporte (columnas Y-AA); crece hacia abajo
+    # sin chocar con la ficha técnica, el bloque CÁLCULO ni el encabezado
+    # 'SATISFACCIÓN' (fila 23). Fuente única de la posición de cada filtro,
+    # usada por _VISIBLE, el dibujo de dropdowns y el VLOOKUP de segmentación.
+    _FILT_COL     = 24   # columna ancla (Y) de etiqueta y dropdown
+    _FILT_COL_END = 26   # última columna (AA) del merge de cada filtro
+    _FILT_ROW0    = 1    # primera fila de etiqueta (0-indexed)
+    def _filt_label_row(i): return _FILT_ROW0 + i * 2
+    def _filt_value_row(i): return _FILT_ROW0 + i * 2 + 1
+
+    _qna_g = chr(34) + "No Aplica" + chr(34)   # criterio "No Aplica" con comillas
+
+    def denom_respuestas(columna):
+        """Total de respuestas 1-5 (visibles) de la columna.
+
+        Es el denominador correcto para los porcentajes: las preguntas
+        condicionales dejan celdas en blanco, y dividir por la muestra total
+        hacía que las barras no sumaran 100% (y desinflaba NSP/NSG/ISC).
+        """
+        return '(' + '+'.join(countif_visible(columna, v) for v in (5, 4, 3, 2, 1)) + ')'
+
     # Función helper para generar fórmulas que consideran filas visibles
     def countif_visible(columna, criterio):
         """Genera COUNTIF que considera solo filas visibles cuando hay slicers"""
@@ -30,18 +52,14 @@
     def correl_visible(col_general, col_pregunta):
         """Correlacion Pearson solo para filas visibles (slicers activos)"""
         if tiene_filtros:
-            g  = f'TB[{col_general}]'
-            p  = f'TB[{col_pregunta}]'
-            v  = 'TB[_VISIBLE]'
-            n  = f'SUMPRODUCT({v})'
-            sg = f'SUMPRODUCT(({v}=1)*{g})'
-            sp = f'SUMPRODUCT(({v}=1)*{p})'
-            sgp= f'SUMPRODUCT(({v}=1)*{g}*{p})'
-            sg2= f'SUMPRODUCT(({v}=1)*{g}^2)'
-            sp2= f'SUMPRODUCT(({v}=1)*{p}^2)'
-            num= f'({sgp}-{sg}*{sp}/{n})'
-            den= f'SQRT(({sg2}-{sg}^2/{n})*({sp2}-{sp}^2/{n}))'
-            return f'=IFERROR(ABS({num}/{den}),0)'
+            # Fórmula matricial: CORREL sobre pares enmascarados. La máscara
+            # exige fila visible y AMBOS valores numéricos. (La versión anterior
+            # con SUMPRODUCT daba #VALUE!->0 con celdas de texto 'No aplica' y
+            # trataba los blancos como ceros, distorsionando la correlación.)
+            g = f'TB[{col_general}]'
+            p = f'TB[{col_pregunta}]'
+            mask = f'(TB[_VISIBLE]=1)*ISNUMBER({g})*ISNUMBER({p})'
+            return ('{=IFERROR(ABS(CORREL(IF(' + mask + f',{g}),IF(' + mask + f',{p}))),0)}}')
         else:
             return f'=IFERROR(ABS(CORREL(TB[{col_general}], TB[{col_pregunta}])), 0)'
     Dijitacion = workbook.add_worksheet("Digitación")
@@ -87,7 +105,7 @@
         _fv_info_cols = []
         for _fi2, _fc2 in enumerate(columnas_filtros_dinamicos):
             if _fc2 in data.columns:
-                _fa = xl_rowcol_to_cell(6 + _fi2 * 2, 1, row_abs=True, col_abs=True)
+                _fa = xl_rowcol_to_cell(_filt_value_row(_fi2), _FILT_COL, row_abs=True, col_abs=True)
                 _fci = data.columns.get_loc(_fc2)
                 _fv_info_cols.append((_fa, _fci))
         def _make_vis_formula(_rn):
@@ -263,6 +281,14 @@
             'left': 1, 'right': 1, 'top': 0, 'bottom': 1, 'border_color': '#999999',
             'italic': True
         })
+        _fmt_hdr_f = workbook.add_format({
+            'align': 'center', 'valign': 'vcenter', 'bold': True, 'font_size': 9,
+            'bg_color': '#1F4E79', 'font_color': 'white',
+            'left': 2, 'right': 2, 'top': 2, 'bottom': 2, 'border_color': 'black'
+        })
+        TG.set_column(_FILT_COL, _FILT_COL_END, 16)
+        TG.merge_range(_FILT_ROW0 - 1, _FILT_COL, _FILT_ROW0 - 1, _FILT_COL_END,
+                       'FILTROS DINÁMICOS', _fmt_hdr_f)
         for _fi, _fc in enumerate(columnas_filtros_dinamicos):
             _vals_dd = ['(Todos)'] + sorted(
                 data[_fc].fillna('Sin especificar').astype(str).unique().tolist()
@@ -273,17 +299,17 @@
             for _rv, _vv in enumerate(_vals_dd):
                 TG.write(_base_r + _rv, _hcol, _vv)
             TG.set_column(_hcol, _hcol, None, None, {'hidden': True})
-            _fl_r = 5 + _fi * 2   # fila etiqueta (0-indexed)
-            _fv_r = _fl_r + 1     # fila celda dropdown
+            _fl_r = _filt_label_row(_fi)   # fila etiqueta (0-indexed)
+            _fv_r = _filt_value_row(_fi)   # fila celda dropdown
             _es_pob = bool(col_segmentacion and _fc == col_segmentacion)
             _lbl_texto = 'Población' if _es_pob else _fc
             _fmt_lbl_uso = _fmt_lbl_pob if _es_pob else _fmt_lbl_f
-            TG.merge_range(_fl_r, 1, _fl_r, 3, _lbl_texto, _fmt_lbl_uso)
-            TG.merge_range(_fv_r, 1, _fv_r, 3, '(Todos)', _fmt_val_f)
+            TG.merge_range(_fl_r, _FILT_COL, _fl_r, _FILT_COL_END, _lbl_texto, _fmt_lbl_uso)
+            TG.merge_range(_fv_r, _FILT_COL, _fv_r, _FILT_COL_END, '(Todos)', _fmt_val_f)
             _v_s = xl_rowcol_to_cell(_base_r, _hcol, row_abs=True, col_abs=True)
             _v_e = xl_rowcol_to_cell(_base_r + len(_vals_dd) - 1, _hcol,
                                      row_abs=True, col_abs=True)
-            TG.data_validation(_fv_r, 1, _fv_r, 3, {
+            TG.data_validation(_fv_r, _FILT_COL, _fv_r, _FILT_COL_END, {
                 'validate': 'list',
                 'source': f'={_v_s}:{_v_e}'
             })
@@ -292,7 +318,7 @@
         _seg_lookup_range  = None
         if col_segmentacion and poblaciones_por_segmento and col_segmentacion in columnas_filtros_dinamicos:
             _idx_seg = columnas_filtros_dinamicos.index(col_segmentacion)
-            _seg_dropdown_cell = xl_rowcol_to_cell(6 + _idx_seg * 2, 1, row_abs=True, col_abs=True)
+            _seg_dropdown_cell = xl_rowcol_to_cell(_filt_value_row(_idx_seg), _FILT_COL, row_abs=True, col_abs=True)
             _seg_r0, _seg_ck, _seg_cv = 1200, 32, 33
             TG.write(_seg_r0, _seg_ck, '(Todos)')
             TG.write(_seg_r0, _seg_cv, n_poblacion)
@@ -381,13 +407,13 @@
     denominador = '$G$11' if tiene_filtros else str(n_estimado)
     for col in range(17, 23):
         if col==22:
-            TG.write_formula(6, col, f'={countif_visible(general,"No Aplica")}/{denominador}', formato_borde_personalizado)
+            TG.write_formula(6, col, f'=IFERROR({countif_visible(general,_qna_g)}/({denom_respuestas(general)}+{countif_visible(general,_qna_g)}),0)', formato_borde_personalizado)
         else:
-            TG.write_formula(6, col,f'={countif_visible(general,respuestas[col-17])}/({denominador}-{countif_visible(general,"No Aplica")})', formato_borde_personalizado)
+            TG.write_formula(6, col,f'=IFERROR({countif_visible(general,respuestas[col-17])}/{denom_respuestas(general)},0)', formato_borde_personalizado)
 
     for col in range(17, 23):
         if col==22:
-            TG.write_formula(7, col, f'={countif_visible(general,"No Aplica")}', formato_borde_personalizado1)
+            TG.write_formula(7, col, f'={countif_visible(general,_qna_g)}', formato_borde_personalizado1)
         else:
             TG.write_formula(7, col,f'={countif_visible(general,respuestas[col-17])}', formato_borde_personalizado1)
 
@@ -435,7 +461,7 @@
     #------------------------------------------------Aplicar formato---------------------------------------------------------------------------------------------
     
     # Definir la función para aplicar el formato
-    def aplicar_formato(worksheet, start_row,deteccion):
+    def aplicar_formato(worksheet, start_row, nombre_left, nombre_right):
         # Definir formatos
         formato_combinado = workbook.add_format({
             'border': 2,                # Borde delgado alrededor de las celdas combinadas
@@ -494,7 +520,7 @@
         # Combinar celdas y aplicar formatos
         worksheet.merge_range(start_row, 1, start_row, 4, 'ATRIBUTO', borde_personalizado)
         worksheet.merge_range(start_row, 5, start_row, 10, 'SATISFACIÓN', borde_personalizado)
-        worksheet.merge_range(start_row + 1, 1, start_row + 3, 4, Preguntas[2*k], formato_combinado)
+        worksheet.merge_range(start_row + 1, 1, start_row + 3, 4, nombre_left, formato_combinado)
         worksheet.merge_range(start_row + 4, 1, start_row + 12, 10, '', formato_combinado2)
 
         # Combinar celdas en columnas F a K (columnas 5 a 10)
@@ -509,9 +535,9 @@
         denominador_attr = '$G$11' if tiene_filtros else str(n_estimado)
         for col in range(5, 11):
             if col==10:
-                worksheet.write_formula(start_row + 3, col, f'={countif_visible(Preguntas[2*k], chr(34)+"No Aplica"+chr(34))}/{denominador_attr}', formato_borde_personalizado)
+                worksheet.write_formula(start_row + 3, col, f'=IFERROR({countif_visible(nombre_left, _qna_g)}/({denom_respuestas(nombre_left)}+{countif_visible(nombre_left, _qna_g)}),0)', formato_borde_personalizado)
             else:
-                worksheet.write_formula(start_row + 3, col, f'={countif_visible(Preguntas[2*k], respuestas[col-5])}/({denominador_attr}-{countif_visible(Preguntas[2*k], chr(34)+"No Aplica"+chr(34))})', formato_borde_personalizado)
+                worksheet.write_formula(start_row + 3, col, f'=IFERROR({countif_visible(nombre_left, respuestas[col-5])}/{denom_respuestas(nombre_left)},0)', formato_borde_personalizado)
         
         inicio_nsp=xl_rowcol_to_cell(start_row+3, 5)
         fin_nsp=xl_rowcol_to_cell(start_row+3, 10)
@@ -556,20 +582,20 @@
             'x_scale': 1.8,
             'y_scale': 0.612
         })
-        if start_row-24 <deteccion:
+        if nombre_right is not None:
             # Combinar celdas y aplicar formatos derecha
             worksheet.merge_range(start_row, 12, start_row, 16, 'ATRIBUTO', borde_personalizado)
             worksheet.merge_range(start_row, 17, start_row, 22, 'SATISFACIÓN', borde_personalizado)
-            worksheet.merge_range(start_row + 1, 12, start_row + 3, 16, Preguntas[2*k+1], formato_combinado)
+            worksheet.merge_range(start_row + 1, 12, start_row + 3, 16, nombre_right, formato_combinado)
             worksheet.merge_range(start_row + 4, 12, start_row + 12, 22, '', formato_combinado2)
 
             # Aplicar bordes a la fila siguiente en el mismo rango de columnas
             denominador_attr_r = '$G$11' if tiene_filtros else str(n_estimado)
             for col in range(17, 23):
                 if col==22:
-                    worksheet.write_formula(start_row + 3, col, f'={countif_visible(Preguntas[2*k+1], chr(34)+"No Aplica"+chr(34))}/{denominador_attr_r}', formato_borde_personalizado)
+                    worksheet.write_formula(start_row + 3, col, f'=IFERROR({countif_visible(nombre_right, _qna_g)}/({denom_respuestas(nombre_right)}+{countif_visible(nombre_right, _qna_g)}),0)', formato_borde_personalizado)
                 else:
-                    worksheet.write_formula(start_row + 3, col, f'={countif_visible(Preguntas[2*k+1], respuestas[col-17])}/({denominador_attr_r}-{countif_visible(Preguntas[2*k+1], chr(34)+"No Aplica"+chr(34))})', formato_borde_personalizado)
+                    worksheet.write_formula(start_row + 3, col, f'=IFERROR({countif_visible(nombre_right, respuestas[col-17])}/{denom_respuestas(nombre_right)},0)', formato_borde_personalizado)
             
             for col in range(17, 23):
                 worksheet.merge_range(start_row + 1, col, start_row + 2, col, labels_graph[col-17], formato_combinado3)
@@ -624,27 +650,49 @@
         return range_nsp
 
 
-    def paroimpar(n):
-        if n % 2 == 0:
-            return "Par"
-        else:
-            return "Impar"
-        
-    # Aplicar el formato cada 14 filas
-    num_columas=len(Preguntas)+1   
-    pi=paroimpar(num_columas)
-    if pi == "Impar":
-        num_repeticiones = int((num_columas-1)/2)
+    # ── Dibujo de las tarjetas de atributos (opcionalmente por categorías) ──
+    formato_categoria = workbook.add_format({
+        'align': 'center', 'valign': 'vcenter', 'bold': True, 'font_size': 18,
+        'bg_color': '#FABF8F', 'font_color': 'black',
+        'left': 2, 'right': 2, 'top': 2, 'bottom': 2, 'border_color': 'black'
+    })
+
+    def _dibujar_pares(worksheet, atributos, row_cursor, acumulador):
+        """Dibuja las tarjetas de 'atributos' en pares (2 por fila, 14 filas c/u)."""
+        for _j in range(0, len(atributos), 2):
+            _nl = atributos[_j]
+            _nr = atributos[_j + 1] if _j + 1 < len(atributos) else None
+            acumulador.extend(aplicar_formato(worksheet, row_cursor, _nl, _nr))
+            row_cursor += 14
+        return row_cursor
+
+    Lista_rango_nsp = []
+    if categorias:
+        # Modo categorías: barra naranja por categoría + sus tarjetas agrupadas.
+        row_cursor = 24
+        _asignados = set()
+        _grupos = []
+        for _cat in categorias:
+            _nombre = str((_cat or {}).get('nombre', '')).strip() or 'CATEGORÍA'
+            _attrs = [a for a in (_cat or {}).get('atributos', [])
+                      if a in Preguntas and a not in _asignados]
+            _asignados.update(_attrs)
+            if _attrs:
+                _grupos.append((_nombre, _attrs))
+        # Atributos sin asignar -> categoría final 'GENERAL' (ninguna tarjeta se pierde)
+        _sin_asignar = [a for a in Preguntas if a not in _asignados]
+        if _sin_asignar:
+            _grupos.append(('GENERAL', _sin_asignar))
+        for _nombre, _attrs in _grupos:
+            TG.merge_range(row_cursor, 1, row_cursor, 22, _nombre.upper(), formato_categoria)
+            TG.set_row(row_cursor, 23.65)
+            row_cursor = _dibujar_pares(TG, _attrs, row_cursor + 3, Lista_rango_nsp)
+            row_cursor += 1   # separación antes de la siguiente barra
+        start_sati_impor = row_cursor + 1
     else:
-        num_repeticiones = int((num_columas)/2)
-    Lista_rango_nsp=[]
-    for i in range(num_repeticiones):
-        start_row = i * 14  # Cada bloque comienza cada 14 filas
-        if pi=="Par":
-            deteccion=(num_repeticiones-1)*14
-        else:
-            deteccion=start_row+25
-        Lista_rango_nsp.extend(aplicar_formato(TG, start_row+24, deteccion))
+        # Modo clásico: una sola cuadrícula continua de tarjetas.
+        row_cursor = _dibujar_pares(TG, list(Preguntas), 24, Lista_rango_nsp)
+        start_sati_impor = row_cursor + 1
 
 
 #-------------------------------------------------insertar valores ficha varianza----------------------------------------------------------------------------------
@@ -701,7 +749,7 @@
 
 #-------------------------------------------------elaboracion matriz satisfacioón----------------------------------------------------------------------------------
     #Elaboracion matiz de satifaccion e importanacia
-    start_sati_impor=(num_repeticiones)*14+25
+    # start_sati_impor ya se calculó en el bloque de tarjetas (con/sin categorías)
     id_row_peso=start_sati_impor
     id__row_nip=start_sati_impor
     id_row_nsp1=start_sati_impor
